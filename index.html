@@ -1137,12 +1137,31 @@ function onPatientIdInput(el) {
   btn.classList.toggle('ready', !!el.value.trim());
 }
 
-function confirmPatientId() {
+async function confirmPatientId() {
   const input = document.getElementById('onboarding-patient-id-input');
   const value = input.value.trim();
   if (!value) return;
+
+  const registeredAt = new Date().toISOString();
   localStorage.setItem(PATIENT_ID_STORAGE_KEY, value);
-  localStorage.setItem(REGISTERED_AT_STORAGE_KEY, new Date().toISOString());
+  localStorage.setItem(REGISTERED_AT_STORAGE_KEY, registeredAt);
+
+  // HTTPリクエストで患者ID登録をサーバーに送信
+  try {
+    await fetch(ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event: 'register',
+        patient_id: value,
+        registered_at: registeredAt,
+        session_id: SESSION_ID,
+      })
+    });
+  } catch(err) {
+    console.warn('[Register] 送信エラー（処理は続行）:', err);
+  }
+
   document.getElementById('onboarding-patient-modal').style.display = 'none';
   startCharacterQuiz();
 }
