@@ -1027,8 +1027,6 @@ async function getPatientId() {
   return _patientId;
 }
 
-これでオンボーディングで入力した診察券番号（"12345"）が正しく patient_id として送られるようになります。
-
 // ===== API呼び出し =====
 async function callAI(userText, imageBase64 = null) {
   const char = currentChar();
