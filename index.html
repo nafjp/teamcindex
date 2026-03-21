@@ -3,19 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>何食べたい？</title>
-<!--
-  =============================================================
-  デプロイ設定メモ
-  =============================================================
-  1. このファイルを Azure Static Web Apps にデプロイする
-  2. staticwebapp.config.json（同梱）を同じルートに配置する
-  3. ENDPOINT 変数に Logic Apps の HTTP トリガー URL を設定する
-  4. Azure Portal > Static Web Apps > 環境変数 で以下を設定:
-       AAD_CLIENT_ID     = App Registration の クライアントID
-       AAD_CLIENT_SECRET = App Registration の シークレット
-  =============================================================
--->
+<title>何食べた？</title>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -29,180 +17,17 @@
   --text-sub: #9B7A62;
   --text-light: #C8A882;
   --shadow: 0 2px 16px rgba(200,120,60,0.10);
+  --char-bg: #F9A8C9;
+  --char-btn: #E87AAA;
+  --char-color: #C05080;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
-body {
-  font-family: 'Noto Sans JP', sans-serif;
-  background: var(--bg);
-  display: flex; justify-content: center;
-}
+body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); display: flex; justify-content: center; }
 .app { width: 100%; max-width: 480px; min-height: 100vh; display: flex; flex-direction: column; }
 
-/* ===== APIキー画面 ===== */
-#setup-screen {
-  position: fixed; inset: 0;
-  background: rgba(44,26,14,0.55);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 200; padding: 20px;
-}
-.setup-card {
-  background: #fff; border-radius: 20px;
-  padding: 28px 24px; width: 100%; max-width: 400px;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.18);
-}
-.setup-icon { font-size: 36px; text-align: center; margin-bottom: 12px; }
-.setup-title {
-  font-family: 'Zen Maru Gothic', sans-serif;
-  font-size: 18px; font-weight: 700; color: var(--text);
-  text-align: center; margin-bottom: 6px;
-}
-.setup-desc { font-size: 12px; color: var(--text-sub); text-align: center; line-height: 1.7; margin-bottom: 20px; }
-.setup-label { font-size: 12px; font-weight: 500; color: var(--text-sub); margin-bottom: 6px; }
-.setup-input {
-  width: 100%; border: 1.5px solid rgba(200,140,80,0.25);
-  border-radius: 10px; padding: 10px 12px;
-  font-size: 13px; font-family: monospace; color: var(--text);
-  outline: none; margin-bottom: 16px;
-}
-.setup-input:focus { border-color: var(--orange); }
-.setup-btn {
-  width: 100%; background: var(--orange); color: #fff;
-  border: none; border-radius: 12px; padding: 12px;
-  font-size: 15px; font-family: 'Noto Sans JP', sans-serif;
-  font-weight: 500; cursor: pointer; transition: background 0.15s;
-}
-.setup-btn:hover { background: var(--orange-dark); }
-.setup-note { font-size: 11px; color: var(--text-light); text-align: center; margin-top: 10px; line-height: 1.6; }
-
-/* ===== 診断画面 ===== */
-#quiz-screen {
-  flex: 1; display: flex; flex-direction: column;
-  padding: 0 0 40px;
-}
-.quiz-header {
-  padding: 24px 20px 0;
-  text-align: center;
-}
-.quiz-logo { font-size: 40px; margin-bottom: 8px; }
-.quiz-main-title {
-  font-family: 'Zen Maru Gothic', sans-serif;
-  font-size: 22px; font-weight: 700; color: var(--text);
-  margin-bottom: 6px;
-}
-.quiz-sub { font-size: 13px; color: var(--text-sub); line-height: 1.7; }
-
-.progress-wrap { padding: 20px 20px 0; }
-.progress-bar-bg {
-  background: var(--orange-light); border-radius: 10px; height: 6px; overflow: hidden;
-}
-.progress-bar-fill {
-  background: var(--orange); height: 100%; border-radius: 10px;
-  transition: width 0.4s ease;
-}
-.progress-label { font-size: 11px; color: var(--text-light); margin-top: 6px; text-align: right; }
-
-.question-wrap {
-  flex: 1; padding: 24px 20px 0;
-  display: flex; flex-direction: column; gap: 16px;
-}
-.question-text {
-  font-family: 'Zen Maru Gothic', sans-serif;
-  font-size: 18px; font-weight: 700; color: var(--text);
-  line-height: 1.6;
-}
-.question-desc { font-size: 13px; color: var(--text-sub); line-height: 1.7; }
-
-.choices { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
-.choice-btn {
-  background: #fff;
-  border: 2px solid rgba(200,140,80,0.2);
-  border-radius: 16px; padding: 16px 18px;
-  text-align: left; cursor: pointer;
-  font-family: 'Noto Sans JP', sans-serif;
-  transition: all 0.18s;
-  display: flex; align-items: center; gap: 12px;
-}
-.choice-btn:hover {
-  border-color: var(--orange);
-  background: var(--orange-light);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(240,125,58,0.18);
-}
-.choice-icon { font-size: 24px; flex-shrink: 0; }
-.choice-text { flex: 1; }
-.choice-main { font-size: 14px; font-weight: 500; color: var(--text); }
-.choice-sub { font-size: 11.5px; color: var(--text-sub); margin-top: 2px; line-height: 1.5; }
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.question-wrap { animation: fadeIn 0.35s ease; }
-
-/* ===== 結果画面 ===== */
-#result-screen {
-  flex: 1; display: none; flex-direction: column;
-  align-items: center; padding: 32px 20px 40px;
-  text-align: center;
-}
-.result-label {
-  font-size: 12px; color: var(--text-sub);
-  letter-spacing: 0.1em; margin-bottom: 12px;
-}
-.result-title {
-  font-family: 'Zen Maru Gothic', sans-serif;
-  font-size: 26px; font-weight: 700; color: var(--text);
-  margin-bottom: 20px;
-}
-.character-card {
-  width: 100%; max-width: 340px;
-  border-radius: 24px; padding: 28px 24px;
-  margin-bottom: 24px;
-  position: relative; overflow: hidden;
-}
-.character-avatar {
-  width: 90px; height: 90px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 44px; margin: 0 auto 14px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-}
-.character-name {
-  font-family: 'Zen Maru Gothic', sans-serif;
-  font-size: 22px; font-weight: 700; margin-bottom: 6px;
-}
-.character-catch {
-  font-size: 13px; opacity: 0.8;
-  line-height: 1.7; margin-bottom: 16px;
-}
-.character-tags { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
-.char-tag {
-  font-size: 11.5px; padding: 4px 12px;
-  border-radius: 20px; font-weight: 500;
-}
-
-.result-btns { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 340px; }
-.start-btn {
-  background: var(--orange); color: #fff;
-  border: none; border-radius: 16px; padding: 16px;
-  font-size: 16px; font-family: 'Zen Maru Gothic', sans-serif;
-  font-weight: 700; cursor: pointer;
-  box-shadow: 0 4px 16px rgba(240,125,58,0.4);
-  transition: all 0.18s;
-}
-.start-btn:hover { background: var(--orange-dark); transform: translateY(-1px); }
-.retry-btn {
-  background: transparent; color: var(--text-sub);
-  border: 1.5px solid rgba(200,140,80,0.25);
-  border-radius: 16px; padding: 12px;
-  font-size: 13px; font-family: 'Noto Sans JP', sans-serif;
-  cursor: pointer; transition: all 0.15s;
-}
-.retry-btn:hover { border-color: var(--orange); color: var(--orange); }
-
 /* ===== チャット画面 ===== */
-#chat-screen { flex: 1; display: none; flex-direction: column; height: 100vh; }
-
+#chat-screen { flex: 1; display: flex; flex-direction: column; height: 100vh; }
 .chat-header {
   padding: 12px 16px 10px; background: var(--bg);
   border-bottom: 1px solid rgba(200,140,80,0.12);
@@ -212,19 +37,50 @@ body {
   width: 40px; height: 40px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: 20px; flex-shrink: 0;
+  background: var(--char-bg);
   box-shadow: 0 2px 8px rgba(0,0,0,0.12);
   cursor: pointer;
 }
 .chat-header-texts { flex: 1; }
-.chat-name {
-  font-family: 'Zen Maru Gothic', sans-serif;
-  font-size: 15px; font-weight: 700; color: var(--text);
-}
+.chat-name { font-family: 'Zen Maru Gothic', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); }
 .chat-status { font-size: 11px; color: var(--green); margin-top: 1px; }
-.chat-header-right { text-align: right; }
-.chat-time { font-size: 13px; font-weight: 500; color: var(--text); }
+.chat-header-right { display: flex; align-items: center; gap: 10px; }
+.chat-header-meta { text-align: right; }
+.chat-time-disp { font-size: 13px; font-weight: 500; color: var(--text); }
 .chat-date { font-size: 10px; color: var(--text-light); }
+.profile-btn {
+  width: 34px; height: 34px; border: none; border-radius: 50%;
+  background: #fff; box-shadow: var(--shadow); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; flex-shrink: 0;
+}
+.profile-btn:hover { background: var(--orange-light); }
 
+/* ===== TFEQ banner ===== */
+.tfeq-banner {
+  display: none; align-items: center; gap: 10px;
+  padding: 9px 14px; flex-shrink: 0;
+  background: linear-gradient(135deg, #E8F5EE 0%, #D4EDE0 100%);
+  border-bottom: 1px solid rgba(91,173,127,0.25);
+}
+.tfeq-banner.urgent {
+  background: linear-gradient(135deg, #FAEEDA 0%, #F5DDB0 100%);
+  border-bottom-color: rgba(240,125,58,0.3);
+}
+.tfeq-banner-text { flex: 1; font-size: 12px; line-height: 1.55; color: #2E7A50; }
+.tfeq-banner.urgent .tfeq-banner-text { color: #7A4A00; }
+.tfeq-banner-btn {
+  font-size: 11.5px; padding: 6px 14px; border-radius: 20px;
+  background: #5BAD7F; color: #fff; border: none; white-space: nowrap;
+  font-family: 'Noto Sans JP', sans-serif; font-weight: 500; cursor: pointer;
+}
+.tfeq-banner.urgent .tfeq-banner-btn { background: var(--orange); }
+.tfeq-skip-btn {
+  font-size: 11px; color: var(--text-light); background: none; border: none;
+  cursor: pointer; padding: 4px 2px; font-family: 'Noto Sans JP', sans-serif; white-space: nowrap;
+}
+
+/* ===== チャットボディ ===== */
 .chat-body {
   flex: 1; overflow-y: auto;
   padding: 14px 14px 10px;
@@ -238,12 +94,13 @@ body {
 .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: rgba(200,140,80,0.15); }
 .divider span { font-size: 11px; color: var(--text-light); white-space: nowrap; }
 
+/* AI bubble */
 .row-ai { display: flex; align-items: flex-end; gap: 8px; }
 .ai-av-sm {
-  width: 28px; height: 28px; flex-shrink: 0;
-  border-radius: 50%;
+  width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+  font-size: 14px; background: var(--char-bg);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
 }
 .ai-bubble {
   background: #fff; border-radius: 14px 14px 14px 4px;
@@ -253,25 +110,37 @@ body {
 }
 .ai-time { font-size: 10px; color: var(--text-light); margin-left: 36px; margin-top: 2px; }
 
+/* User bubble */
 .row-user { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
 .user-bubble {
-  color: #fff; border-radius: 14px 14px 4px 14px;
+  background: var(--char-btn); color: #fff;
+  border-radius: 14px 14px 4px 14px;
   padding: 10px 13px; max-width: 78%;
   font-size: 13.5px; line-height: 1.75;
 }
 .user-time { font-size: 10px; color: var(--text-light); }
 
-.photo-bubble {
-  border-radius: 14px 14px 4px 14px;
-  overflow: hidden; max-width: 65%;
-}
+/* Photo bubble */
+.photo-bubble { border-radius: 14px 14px 4px 14px; overflow: hidden; max-width: 65%; }
 .photo-bubble img { width: 100%; display: block; }
-.photo-cap {
-  padding: 5px 10px 7px;
-  font-size: 11px; color: rgba(255,255,255,0.85);
-  display: flex; justify-content: space-between;
+.photo-cap { padding: 5px 10px 7px; font-size: 11px; color: rgba(255,255,255,0.85); background: var(--char-btn); display: flex; justify-content: space-between; }
+
+/* Typing */
+.typing { display: flex; align-items: flex-end; gap: 8px; }
+.typing-dots { background: #fff; border-radius: 14px; padding: 11px 13px; box-shadow: var(--shadow); display: flex; gap: 4px; align-items: center; }
+.dot { width: 6px; height: 6px; background: var(--text-light); border-radius: 50%; animation: bob 1.2s infinite; }
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bob { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+/* Food Card */
+.food-card {
+  background: #fff; border-radius: 12px;
+  padding: 12px 14px; margin-left: 36px; max-width: 88%;
+  box-shadow: var(--shadow);
 }
 
+/* Emotion row */
 .emotion-row { display: flex; flex-wrap: wrap; gap: 6px; margin-left: 36px; }
 .e-btn {
   background: #fff; border: 1.5px solid rgba(200,140,80,0.22);
@@ -281,36 +150,9 @@ body {
   transition: all 0.15s;
 }
 .e-btn:hover { background: var(--orange-light); border-color: var(--orange); }
+.e-btn.sel { background: var(--orange-light); border-color: var(--orange); }
 
-.debq-card {
-  background: var(--green-light); border: 1px solid rgba(91,173,127,0.22);
-  border-radius: 12px; padding: 10px 13px;
-  margin-left: 36px; max-width: 88%;
-}
-.debq-title { font-size: 11px; font-weight: 500; color: var(--green); margin-bottom: 6px; }
-.tags { display: flex; flex-wrap: wrap; gap: 5px; }
-.tag { font-size: 11px; padding: 3px 9px; border-radius: 20px; font-weight: 500; }
-.tag-e { background: #FEE9DA; color: #C25A20; }
-.tag-x { background: #EBF0FE; color: #3B5EB5; }
-.tag-r { background: #E8F5EE; color: #2E7A50; }
-
-.food-card {
-  background: #fff; border-radius: 12px;
-  padding: 12px 14px; margin-left: 36px; max-width: 88%;
-  box-shadow: var(--shadow);
-}
-
-.typing { display: flex; align-items: flex-end; gap: 8px; }
-.typing-dots {
-  background: #fff; border-radius: 14px;
-  padding: 11px 13px; box-shadow: var(--shadow);
-  display: flex; gap: 4px; align-items: center;
-}
-.dot { width: 6px; height: 6px; background: var(--text-light); border-radius: 50%; animation: bob 1.2s infinite; }
-.dot:nth-child(2) { animation-delay: 0.2s; }
-.dot:nth-child(3) { animation-delay: 0.4s; }
-@keyframes bob { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
-
+/* ===== チャット入力エリア ===== */
 .chat-input-area {
   flex-shrink: 0; background: var(--bg);
   border-top: 1px solid rgba(200,140,80,0.12);
@@ -327,27 +169,21 @@ body {
 }
 .input-row:focus-within { border-color: var(--orange); }
 .msg-input {
-  flex: 1; border: none; outline: none;
-  background: transparent;
-  font-family: 'Noto Sans JP', sans-serif;
-  font-size: 14px; color: var(--text);
-  resize: none; max-height: 90px;
-  line-height: 1.6; padding: 3px 0;
+  flex: 1; border: none; outline: none; background: transparent;
+  font-family: 'Noto Sans JP', sans-serif; font-size: 14px; color: var(--text);
+  resize: none; max-height: 90px; line-height: 1.6; padding: 3px 0;
 }
 .msg-input::placeholder { color: var(--text-light); }
 .icon-btn {
-  width: 34px; height: 34px; border: none;
-  background: none; cursor: pointer;
+  width: 34px; height: 34px; border: none; background: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  border-radius: 50%; font-size: 17px;
-  transition: background 0.14s; flex-shrink: 0;
+  border-radius: 50%; font-size: 17px; transition: background 0.14s; flex-shrink: 0;
 }
 .icon-btn:hover { background: var(--orange-light); }
 .send-btn {
-  width: 36px; height: 36px; border: none; border-radius: 50%;
+  width: 36px; height: 36px; background: var(--char-btn); border: none; border-radius: 50%;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 2px 8px rgba(240,125,58,0.4);
-  transition: all 0.15s; flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(240,125,58,0.4); transition: all 0.15s; flex-shrink: 0;
 }
 .send-btn:hover { filter: brightness(0.9); transform: scale(1.06); }
 .send-btn svg { width: 16px; height: 16px; fill: white; }
@@ -356,169 +192,277 @@ body {
 .error-bubble {
   background: #FEE; border: 1px solid #FCC;
   border-radius: 12px; padding: 10px 14px;
-  font-size: 12.5px; color: #C00;
-  margin-left: 36px; max-width: 88%;
+  font-size: 12.5px; color: #C00; margin-left: 36px; max-width: 88%;
 }
 
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.row-ai,.row-user,.debq-card,.emotion-row,.ai-time,.user-time,.food-card,.error-bubble {
+.row-ai, .row-user, .emotion-row, .food-card,
+.ai-time, .user-time, .error-bubble {
   animation: fadeUp 0.28s ease;
 }
 
-/* ===== TFEQリマインドバナー ===== */
-.tfeq-banner {
-  display: none; align-items: center; gap: 10px;
-  padding: 10px 14px; flex-shrink: 0;
-  background: linear-gradient(135deg, #E8F5EE 0%, #D4EDE0 100%);
-  border-bottom: 1px solid rgba(91,173,127,0.25);
-  cursor: default;
-}
-.tfeq-banner.urgent {
-  background: linear-gradient(135deg, #FAEEDA 0%, #F5DDB0 100%);
-  border-bottom-color: rgba(240,125,58,0.3);
-}
-.tfeq-banner-icon { font-size: 20px; flex-shrink: 0; }
-.tfeq-banner-text { flex: 1; font-size: 12px; line-height: 1.55; color: #2E7A50; }
-.tfeq-banner.urgent .tfeq-banner-text { color: #7A4A00; }
-.tfeq-banner-btn {
-  font-size: 11.5px; padding: 6px 14px; border-radius: 20px;
-  background: #5BAD7F; color: #fff; border: none; white-space: nowrap;
-  font-family: 'Noto Sans JP', sans-serif; font-weight: 500; cursor: pointer;
-  transition: background 0.15s; flex-shrink: 0;
-}
-.tfeq-banner.urgent .tfeq-banner-btn { background: var(--orange); }
-.tfeq-banner-btn:hover { filter: brightness(0.9); }
-.tfeq-skip-btn {
-  font-size: 11px; color: var(--text-light); background: none; border: none;
-  cursor: pointer; padding: 4px 2px; font-family: 'Noto Sans JP', sans-serif;
-  white-space: nowrap; flex-shrink: 0;
-}
-
-/* ===== TFEQ回答画面 ===== */
+/* ===== TFEQ画面 ===== */
 #tfeq-screen {
-  display: none; flex-direction: column; height: 100vh;
-  background: var(--bg);
+  display: none; flex-direction: column; height: 100vh; background: var(--bg);
+  position: fixed; inset: 0; z-index: 100;
 }
-.tfeq-header {
-  padding: 14px 20px 12px; flex-shrink: 0;
-  border-bottom: 1px solid rgba(200,140,80,0.12);
-  background: var(--bg);
-}
+.tfeq-header { padding: 14px 20px 12px; flex-shrink: 0; border-bottom: 1px solid rgba(200,140,80,0.12); }
 .tfeq-header-top { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-.tfeq-back-btn {
-  background: none; border: none; font-size: 18px;
-  cursor: pointer; padding: 0 4px; color: var(--text-sub);
-}
-.tfeq-title {
-  font-family: 'Zen Maru Gothic', sans-serif;
-  font-size: 16px; font-weight: 700; color: var(--text);
-}
+.tfeq-back-btn { background: none; border: none; font-size: 18px; cursor: pointer; padding: 0 4px; color: var(--text-sub); }
+.tfeq-title { font-family: 'Zen Maru Gothic', sans-serif; font-size: 16px; font-weight: 700; color: var(--text); }
 .tfeq-sub { font-size: 11.5px; color: var(--text-sub); line-height: 1.6; }
 .tfeq-prog-wrap { padding: 10px 20px 0; flex-shrink: 0; }
-.tfeq-body {
-  flex: 1; overflow-y: auto; padding: 14px 16px 10px;
-  display: flex; flex-direction: column; gap: 0;
-}
+.progress-bar-bg { background: var(--orange-light); border-radius: 10px; height: 6px; overflow: hidden; }
+.progress-bar-fill { background: var(--orange); height: 100%; border-radius: 10px; transition: width 0.4s ease; }
+.progress-label { font-size: 11px; color: var(--text-light); margin-top: 6px; text-align: right; }
+.tfeq-body { flex: 1; overflow-y: auto; padding: 14px 16px 10px; display: flex; flex-direction: column; gap: 0; }
 .tfeq-body::-webkit-scrollbar { width: 3px; }
 .tfeq-body::-webkit-scrollbar-thumb { background: var(--orange-light); border-radius: 3px; }
-.tfeq-scale-header {
-  display: grid; grid-template-columns: repeat(4,1fr);
-  gap: 4px; padding: 0 4px 8px; flex-shrink: 0;
-}
-.tfeq-scale-label { font-size: 9px; color: var(--text-light); text-align: center; line-height: 1.3; }
-.tfeq-q-wrap {
-  background: #fff; border-radius: 12px; padding: 12px 14px;
-  margin-bottom: 8px; box-shadow: 0 1px 5px rgba(200,120,60,0.07);
-}
+.tfeq-q-wrap { background: #fff; border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; box-shadow: 0 1px 5px rgba(200,120,60,0.07); }
 .tfeq-q-num { font-size: 10px; color: var(--text-light); margin-bottom: 4px; }
 .tfeq-q-text { font-size: 13.5px; color: var(--text); line-height: 1.55; margin-bottom: 10px; font-weight: 500; }
 .tfeq-opts { display: grid; grid-template-columns: repeat(4,1fr); gap: 5px; }
 .tfeq-opt {
   background: var(--orange-light); border: 1.5px solid transparent;
   border-radius: 8px; padding: 8px 4px; text-align: center;
-  cursor: pointer; font-size: 18px; transition: all 0.15s;
+  cursor: pointer; font-size: 16px; transition: all 0.15s;
 }
 .tfeq-opt:hover { border-color: var(--orange); background: #fde0c0; }
-.tfeq-opt.sel { background: var(--orange); border-color: var(--orange-dark); }
-.tfeq-footer {
-  padding: 10px 16px 24px; flex-shrink: 0;
-  border-top: 1px solid rgba(200,140,80,0.12);
-  background: var(--bg);
-}
+.tfeq-opt.sel { background: var(--orange); border-color: var(--orange-dark); color: #fff; font-weight: 700; }
+.tfeq-footer { padding: 10px 16px 24px; flex-shrink: 0; border-top: 1px solid rgba(200,140,80,0.12); }
 .tfeq-submit-btn {
   width: 100%; background: var(--orange); color: #fff;
   border: none; border-radius: 14px; padding: 14px;
   font-size: 15px; font-family: 'Zen Maru Gothic', sans-serif;
-  font-weight: 700; cursor: pointer; opacity: 0.35; pointer-events: none;
-  transition: all 0.2s;
+  font-weight: 700; cursor: pointer; opacity: 0.35; pointer-events: none; transition: all 0.2s;
 }
 .tfeq-submit-btn.ready { opacity: 1; pointer-events: all; }
-.tfeq-submit-btn.ready:hover { background: var(--orange-dark); }
 
-/* ===== TFEQイントロモーダル ===== */
+/* TFEQ intro modal */
 #tfeq-intro-modal {
-  display: none;
-  position: fixed; inset: 0; z-index: 300;
-  background: rgba(44,26,14,0.55);
-  align-items: center; justify-content: center;
-  padding: 24px;
+  display: none; position: fixed; inset: 0; z-index: 300;
+  background: rgba(44,26,14,0.55); align-items: center; justify-content: center; padding: 24px;
 }
 .tfeq-intro-card {
-  background: #fff; border-radius: 20px;
-  padding: 28px 24px; width: 100%; max-width: 380px;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.18);
-  animation: fadeIn 0.3s ease;
+  background: #fff; border-radius: 20px; padding: 28px 24px;
+  width: 100%; max-width: 380px; box-shadow: 0 8px 40px rgba(0,0,0,0.18);
 }
 .tfeq-intro-icon { font-size: 40px; text-align: center; margin-bottom: 12px; }
-.tfeq-intro-title {
-  font-family: 'Zen Maru Gothic', sans-serif;
-  font-size: 18px; font-weight: 700; color: var(--text);
-  text-align: center; margin-bottom: 6px;
-}
-.tfeq-intro-sub {
-  font-size: 12.5px; color: var(--text-sub);
-  text-align: center; line-height: 1.7; margin-bottom: 22px;
-}
-.tfeq-scale-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr);
-  gap: 8px; margin-bottom: 20px;
-}
-.tfeq-scale-item {
-  background: var(--orange-light);
-  border-radius: 12px; padding: 10px 6px;
-  text-align: center;
-}
-.tfeq-scale-num {
-  font-family: 'Zen Maru Gothic', sans-serif;
-  font-size: 24px; font-weight: 700; color: var(--orange);
-  line-height: 1;
-}
-.tfeq-scale-desc {
-  font-size: 10.5px; color: var(--text-sub);
-  line-height: 1.4; margin-top: 5px;
-}
-.tfeq-intro-note {
-  font-size: 11.5px; color: var(--text-sub);
-  background: var(--orange-light); border-radius: 10px;
-  padding: 10px 12px; line-height: 1.6; margin-bottom: 20px;
-  text-align: center;
-}
-.tfeq-intro-btn {
-  width: 100%; background: var(--orange); color: #fff;
-  border: none; border-radius: 14px; padding: 14px;
-  font-size: 15px; font-family: 'Zen Maru Gothic', sans-serif;
-  font-weight: 700; cursor: pointer; transition: background 0.15s;
-}
+.tfeq-intro-title { font-family: 'Zen Maru Gothic', sans-serif; font-size: 18px; font-weight: 700; color: var(--text); text-align: center; margin-bottom: 6px; }
+.tfeq-intro-sub { font-size: 12.5px; color: var(--text-sub); text-align: center; line-height: 1.7; margin-bottom: 22px; }
+.tfeq-scale-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px; }
+.tfeq-scale-item { background: var(--orange-light); border-radius: 12px; padding: 10px 6px; text-align: center; }
+.tfeq-scale-num { font-family: 'Zen Maru Gothic', sans-serif; font-size: 24px; font-weight: 700; color: var(--orange); line-height: 1; }
+.tfeq-scale-desc { font-size: 10.5px; color: var(--text-sub); line-height: 1.4; margin-top: 5px; }
+.tfeq-intro-note { font-size: 11.5px; color: var(--text-sub); background: var(--orange-light); border-radius: 10px; padding: 10px 12px; line-height: 1.6; margin-bottom: 20px; text-align: center; }
+.tfeq-intro-btn { width: 100%; background: var(--orange); color: #fff; border: none; border-radius: 14px; padding: 14px; font-size: 15px; font-family: 'Zen Maru Gothic', sans-serif; font-weight: 700; cursor: pointer; transition: background 0.15s; }
 .tfeq-intro-btn:hover { background: var(--orange-dark); }
+
+/* ===== 登録情報モーダル ===== */
+#registration-info-modal {
+  display: none; position: fixed; inset: 0; z-index: 450;
+  background: rgba(44,26,14,0.55); align-items: center; justify-content: center; padding: 24px;
+}
+.reg-info-card {
+  background: var(--orange-light); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px;
+}
+.reg-info-label { font-size: 11px; color: var(--text-light); margin-bottom: 4px; }
+.reg-info-value { font-size: 14px; color: var(--text); line-height: 1.6; word-break: break-word; }
+.reg-info-note { font-size: 11.5px; color: #C96B6B; text-align: center; line-height: 1.6; margin: 6px 0 18px; }
+
+/* ===== オンボーディング ===== */
+.onboarding-overlay {
+  display: none; position: fixed; inset: 0; z-index: 500;
+  background: rgba(44,26,14,0.55); align-items: center; justify-content: center; padding: 24px;
+}
+.consent-text {
+  font-size: 12.5px; color: var(--text-sub); line-height: 1.75; margin-bottom: 16px;
+  border-left: 3px solid var(--orange-light); padding-left: 10px;
+}
+.consent-check {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--text); margin-bottom: 18px;
+}
+.consent-check input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--orange); }
+.patient-id-input {
+  width: 100%; border: 1.5px solid rgba(200,140,80,0.25);
+  border-radius: 12px; padding: 12px 14px;
+  font-size: 14px; font-family: 'Noto Sans JP', sans-serif;
+  color: var(--text); outline: none; margin-bottom: 18px; background: var(--bg);
+}
+.patient-id-input:focus { border-color: var(--orange); }
+.patient-id-start-btn { opacity: 0.45; pointer-events: none; transition: all 0.2s; }
+.patient-id-start-btn.ready { opacity: 1; pointer-events: all; }
+.onboarding-complete-icon { font-size: 48px; text-align: center; margin-bottom: 12px; }
+.onboarding-complete-title {
+  font-family: 'Zen Maru Gothic', sans-serif; font-size: 22px; font-weight: 700; color: var(--text);
+  text-align: center; margin-bottom: 8px;
+}
+.onboarding-complete-text {
+  font-size: 13px; color: var(--text-sub); text-align: center; line-height: 1.8; margin-bottom: 22px;
+}
+
+/* ===== 診断画面 ===== */
+#quiz-screen {
+  display: none; position: fixed; inset: 0; z-index: 510; background: var(--bg);
+  flex-direction: column; padding: 0 0 40px;
+}
+.quiz-header { padding: 24px 20px 0; text-align: center; }
+.quiz-logo { font-size: 40px; margin-bottom: 8px; }
+.quiz-main-title {
+  font-family: 'Zen Maru Gothic', sans-serif;
+  font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 6px;
+}
+.quiz-sub { font-size: 13px; color: var(--text-sub); line-height: 1.7; }
+.progress-wrap { padding: 20px 20px 0; }
+.question-wrap {
+  flex: 1; padding: 24px 20px 0;
+  display: flex; flex-direction: column; gap: 16px;
+  animation: fadeIn 0.35s ease;
+}
+.question-text {
+  font-family: 'Zen Maru Gothic', sans-serif;
+  font-size: 18px; font-weight: 700; color: var(--text); line-height: 1.6;
+}
+.question-desc { font-size: 13px; color: var(--text-sub); line-height: 1.7; }
+.choices { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.choice-btn {
+  background: #fff; border: 2px solid rgba(200,140,80,0.2); border-radius: 16px; padding: 16px 18px;
+  text-align: left; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; transition: all 0.18s;
+  display: flex; align-items: center; gap: 12px;
+}
+.choice-btn:hover {
+  border-color: var(--orange); background: var(--orange-light); transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(240,125,58,0.18);
+}
+.choice-icon { font-size: 24px; flex-shrink: 0; }
+.choice-text { flex: 1; }
+.choice-main { font-size: 14px; font-weight: 500; color: var(--text); }
+.choice-sub { font-size: 11.5px; color: var(--text-sub); margin-top: 2px; line-height: 1.5; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== 結果画面 ===== */
+.result-screen {
+  display: none; position: fixed; inset: 0; z-index: 200; background: var(--bg);
+  flex-direction: column; align-items: center; padding: 32px 20px 40px; text-align: center;
+  overflow-y: auto;
+}
+.result-label { font-size: 12px; color: var(--text-sub); letter-spacing: 0.1em; margin-bottom: 12px; }
+.result-title {
+  font-family: 'Zen Maru Gothic', sans-serif;
+  font-size: 26px; font-weight: 700; color: var(--text); margin-bottom: 20px;
+}
+.character-card {
+  width: 100%; max-width: 340px; border-radius: 24px; padding: 28px 24px; margin-bottom: 24px;
+  position: relative; overflow: hidden;
+}
+.character-avatar {
+  width: 90px; height: 90px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 44px; margin: 0 auto 14px; box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+}
+.character-name { font-family: 'Zen Maru Gothic', sans-serif; font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+.character-catch { font-size: 13px; opacity: 0.8; line-height: 1.7; margin-bottom: 16px; white-space: pre-line; }
+.character-tags { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.char-tag { font-size: 11.5px; padding: 4px 12px; border-radius: 20px; font-weight: 500; }
+.result-btns { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 340px; }
+.start-btn {
+  background: var(--orange); color: #fff; border: none; border-radius: 16px; padding: 16px;
+  font-size: 16px; font-family: 'Zen Maru Gothic', sans-serif;
+  font-weight: 700; cursor: pointer;
+  box-shadow: 0 4px 16px rgba(240,125,58,0.4); transition: all 0.18s;
+}
+.start-btn:hover { background: var(--orange-dark); transform: translateY(-1px); }
+.retry-btn {
+  background: transparent; color: var(--text-sub); border: 1.5px solid rgba(200,140,80,0.25);
+  border-radius: 16px; padding: 12px; font-size: 13px; font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer; transition: all 0.15s;
+}
+.retry-btn:hover { border-color: var(--orange); color: var(--orange); }
 </style>
 </head>
 <body>
 <div class="app" id="app">
 
-<!-- APIキー設定画面は不要（Entra認証＋Logic Apps で管理） -->
+<!-- ===== チャット画面 ===== -->
+<div id="chat-screen" style="display:flex;flex-direction:column;height:100vh;">
+  <div class="chat-header">
+    <div class="chat-avatar" id="chat-avatar" onclick="resetChar()" title="キャラを変える">🌸</div>
+    <div class="chat-header-texts">
+      <div class="chat-name" id="chat-name">あおい</div>
+      <div class="chat-status">● オンライン</div>
+    </div>
+    <div class="chat-header-right">
+      <div class="chat-header-meta">
+        <div class="chat-time-disp" id="hTime"></div>
+        <div class="chat-date" id="hDate"></div>
+      </div>
+      <button class="profile-btn" onclick="showRegistrationInfoModal()">👤</button>
+    </div>
+  </div>
+
+  <div class="tfeq-banner" id="tfeq-banner">
+    <div style="font-size:20px;">📋</div>
+    <div class="tfeq-banner-text" id="tfeq-banner-text"><strong>あおいより：</strong>一度だけアンケートに答えてもらえる？（約3分）</div>
+    <button class="tfeq-banner-btn" onclick="startTFEQ()">答える</button>
+    <button class="tfeq-skip-btn" onclick="skipTFEQ()">後で</button>
+  </div>
+
+  <div class="chat-body" id="chat-body">
+    <div class="divider"><span id="todayLabel"></span></div>
+  </div>
+
+  <div class="chat-input-area">
+    <div class="input-hint">📷 写真を送ると食事内容を自動で読み取るよ</div>
+    <div class="input-row">
+      <textarea class="msg-input" id="msgInput" rows="1"
+        placeholder="今日食べたこと、気持ちを話して..."
+        oninput="resizeInput(this)" onkeydown="handleKey(event)"></textarea>
+      <input type="file" id="photo-input" accept="image/*" onchange="sendPhoto(event)">
+      <button class="icon-btn" onclick="document.getElementById('photo-input').click()">📷</button>
+      <button class="send-btn" id="send-btn" onclick="sendMsg()">
+        <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== オンボーディング：同意モーダル ===== -->
+<div class="onboarding-overlay" id="onboarding-consent-modal">
+  <div class="tfeq-intro-card">
+    <div class="tfeq-intro-title">はじめにご確認ください</div>
+    <div class="consent-text">このアプリで入力した食事記録・アンケート結果は、
+栄養指導の改善および研究目的に利用される場合があります。
+個人を特定する情報は適切に管理されます。</div>
+    <div class="consent-check">
+      <input type="checkbox" id="consent-checkbox" onchange="onConsentChange(this)">
+      <label for="consent-checkbox">内容を確認し、同意します</label>
+    </div>
+    <button class="tfeq-intro-btn patient-id-start-btn" id="consent-next-btn" onclick="confirmConsent()">同意して次へ →</button>
+  </div>
+</div>
+
+<!-- ===== オンボーディング：診察券番号 ===== -->
+<div class="onboarding-overlay" id="onboarding-patient-modal">
+  <div class="tfeq-intro-card">
+    <div class="tfeq-intro-title">はじめに診察券番号を入力してください</div>
+    <div class="tfeq-intro-sub">一度だけの入力です</div>
+    <input
+      type="text"
+      id="onboarding-patient-id-input"
+      class="patient-id-input"
+      maxlength="20"
+      placeholder="診察券番号を入力"
+      oninput="onPatientIdInput(this)">
+    <button class="tfeq-intro-btn patient-id-start-btn" id="patient-id-start-btn" onclick="confirmPatientId()">次へ →</button>
+  </div>
+</div>
 
 <!-- ===== 診断画面 ===== -->
 <div id="quiz-screen">
@@ -537,12 +481,12 @@ body {
 </div>
 
 <!-- ===== 結果画面 ===== -->
-<div id="result-screen">
+<div class="result-screen" id="result-screen">
   <div class="result-label">あなたのマイ栄養士は…</div>
   <div class="result-title" id="result-title"></div>
   <div class="character-card" id="char-card">
-    <div class="character-avatar" id="char-avatar"></div>
-    <div class="character-name" id="char-name"></div>
+    <div class="character-avatar" id="char-avatar-result"></div>
+    <div class="character-name" id="char-name-result"></div>
     <div class="character-catch" id="char-catch"></div>
     <div class="character-tags" id="char-tags"></div>
   </div>
@@ -552,71 +496,59 @@ body {
   </div>
 </div>
 
-<!-- ===== チャット画面 ===== -->
-<div id="chat-screen">
-  <div class="chat-header">
-    <div class="chat-avatar" id="chat-avatar" onclick="resetChar()" title="キャラを変える"></div>
-    <div class="chat-header-texts">
-      <div class="chat-name" id="chat-name"></div>
-      <div class="chat-status">● オンライン</div>
+<!-- ===== 登録情報モーダル ===== -->
+<div id="registration-info-modal">
+  <div class="tfeq-intro-card">
+    <div class="tfeq-intro-title">登録情報</div>
+    <div class="reg-info-card">
+      <div class="reg-info-label">診察券番号</div>
+      <div class="reg-info-value" id="reg-patient-id"></div>
     </div>
-    <div class="chat-header-right">
-      <div class="chat-time" id="hTime"></div>
-      <div class="chat-date" id="hDate"></div>
+    <div class="reg-info-card">
+      <div class="reg-info-label">食行動アンケート（TFEQ）</div>
+      <div class="reg-info-value" id="reg-tfeq-status"></div>
     </div>
-  </div>
-  <div class="tfeq-banner" id="tfeq-banner">
-    <div class="tfeq-banner-icon">📋</div>
-    <div class="tfeq-banner-text" id="tfeq-banner-text"></div>
-    <button class="tfeq-banner-btn" onclick="startTFEQ()">答える</button>
-    <button class="tfeq-skip-btn" onclick="skipTFEQ()">後で</button>
-  </div>
-  <div class="chat-body" id="chat-body">
-    <div class="divider"><span id="todayLabel"></span></div>
-  </div>
-  <div class="chat-input-area">
-    <div class="input-hint">📷 写真を送ると食事内容を自動で読み取るよ</div>
-    <div class="input-row">
-      <textarea class="msg-input" id="msgInput" rows="1"
-        placeholder="今日食べたこと、気持ちを話して..."
-        oninput="resizeInput(this)" onkeydown="handleKey(event)"></textarea>
-      <input type="file" id="photo-input" accept="image/*" onchange="sendPhoto(event)">
-      <button class="icon-btn" onclick="document.getElementById('photo-input').click()">📷</button>
-      <button class="send-btn" id="send-btn" onclick="sendMsg()">
-        <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
-      </button>
+    <div class="reg-info-card">
+      <div class="reg-info-label">食事記録件数</div>
+      <div class="reg-info-value" id="reg-bronze-count"></div>
     </div>
+    <div class="reg-info-card">
+      <div class="reg-info-label">初回登録日</div>
+      <div class="reg-info-value" id="reg-registered-at"></div>
+    </div>
+    <div class="reg-info-note">番号が違う場合はスタッフにお申し出ください</div>
+    <button class="tfeq-intro-btn" onclick="hideRegistrationInfoModal()">とじる</button>
   </div>
 </div>
 
+<!-- ===== オンボーディング完了モーダル ===== -->
+<div class="onboarding-overlay" id="onboarding-complete-modal">
+  <div class="tfeq-intro-card">
+    <div class="onboarding-complete-icon" id="onboarding-complete-emoji">🌸</div>
+    <div class="onboarding-complete-title">準備完了！</div>
+    <div class="onboarding-complete-text">これから食事の記録を一緒につけていこう😊</div>
+    <button class="tfeq-intro-btn" onclick="finishOnboardingAndStartChat()">はじめる！</button>
+  </div>
+</div>
+
+<!-- ===== TFEQ intro modal ===== -->
 <div id="tfeq-intro-modal">
   <div class="tfeq-intro-card">
     <div class="tfeq-intro-icon">📋</div>
     <div class="tfeq-intro-title">アンケートの答え方</div>
     <div class="tfeq-intro-sub">それぞれの質問について、<br>自分にどのくらいあてはまるか選んでください。</div>
     <div class="tfeq-scale-grid">
-      <div class="tfeq-scale-item">
-        <div class="tfeq-scale-num">1</div>
-        <div class="tfeq-scale-desc">全く<br>あては<br>まらない</div>
-      </div>
-      <div class="tfeq-scale-item">
-        <div class="tfeq-scale-num">2</div>
-        <div class="tfeq-scale-desc">あまり<br>あては<br>まらない</div>
-      </div>
-      <div class="tfeq-scale-item">
-        <div class="tfeq-scale-num">3</div>
-        <div class="tfeq-scale-desc">やや<br>あては<br>まる</div>
-      </div>
-      <div class="tfeq-scale-item">
-        <div class="tfeq-scale-num">4</div>
-        <div class="tfeq-scale-desc">よく<br>あては<br>まる</div>
-      </div>
+      <div class="tfeq-scale-item"><div class="tfeq-scale-num">1</div><div class="tfeq-scale-desc">全く<br>あては<br>まらない</div></div>
+      <div class="tfeq-scale-item"><div class="tfeq-scale-num">2</div><div class="tfeq-scale-desc">あまり<br>あては<br>まらない</div></div>
+      <div class="tfeq-scale-item"><div class="tfeq-scale-num">3</div><div class="tfeq-scale-desc">やや<br>あては<br>まる</div></div>
+      <div class="tfeq-scale-item"><div class="tfeq-scale-num">4</div><div class="tfeq-scale-desc">よく<br>あては<br>まる</div></div>
     </div>
     <div class="tfeq-intro-note">✏️ 18問あります。直感で選んでOK。<br>正解・不正解はありません。</div>
     <button class="tfeq-intro-btn" onclick="closeTFEQIntro()">はじめる →</button>
   </div>
 </div>
 
+<!-- ===== TFEQ画面 ===== -->
 <div id="tfeq-screen">
   <div class="tfeq-header">
     <div class="tfeq-header-top">
@@ -626,9 +558,7 @@ body {
     <div class="tfeq-sub">18の質問に答えてください。あなたの食事サポートに使います。</div>
   </div>
   <div class="tfeq-prog-wrap">
-    <div class="progress-bar-bg">
-      <div class="progress-bar-fill" id="tfeq-prog-fill" style="width:0%"></div>
-    </div>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="tfeq-prog-fill" style="width:0%"></div></div>
     <div class="progress-label" id="tfeq-prog-label">0 / 18</div>
   </div>
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:10px 16px 4px;flex-shrink:0;">
@@ -643,73 +573,65 @@ body {
   </div>
 </div>
 
-</div>
+</div><!-- /.app -->
+
 <script>
 // ===== 設定 =====
-// Logic Apps の HTTP トリガー URL を貼り付けてください
+// Logic Apps の HTTP トリガー URL を設定してください
 const ENDPOINT = "https://prod-22.japanwest.logic.azure.com:443/workflows/143e1fcd09e844908b82ccb7da4e224a/triggers/HTTP_Request/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FHTTP_Request%2Frun&sv=1.0&sig=FF7W9sTKjDxUgcp7EaBLvrdJx8vg3du87W1ZoKOPpOw";
 
-let selectedChar = null;
+const PATIENT_ID_STORAGE_KEY = 'patient_id';
+const REGISTERED_AT_STORAGE_KEY = 'registered_at';
+const BRONZE_COUNT_STORAGE_KEY = 'bronze_count';
+const ONBOARDING_DONE_STORAGE_KEY = 'onboarding_done';
+const CONSENT_AGREED_STORAGE_KEY = 'consent_agreed';
+
+let selectedChar = localStorage.getItem('nani_char') || 'aoi';
 let conversationHistory = [];
-let _patientId = null; // Entra ID /.auth/me から取得した OID
+let onboardingInProgress = false;
+let currentQ = 0;
+let answers = [];
+let _patientId = null;
+const SESSION_ID = 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+const bronzeLog = [];
 
 // ===== キャラクター定義 =====
 const CHARACTERS = {
   aoi: {
-    name: 'あおい',
-    emoji: '🌸',
-    bg: 'linear-gradient(135deg, #FFE8F0 0%, #FFD6E8 100%)',
-    avatarBg: '#F9A8C9',
-    color: '#C05080',
-    tagBg: '#FFE0EE',
+    name: 'あおい', emoji: '🌸', avatarBg: '#F9A8C9', btnColor: '#E87AAA',
+    bg: 'linear-gradient(135deg, #FFE8F0 0%, #FFD6E8 100%)', color: '#C05080', tagBg: '#FFE0EE',
     catch: '「それわかる〜！」\nいつもそばにいる友達みたいな存在',
     tags: ['共感型', '友達感覚', 'タメ口OK', '感情に寄り添う'],
-    btnColor: '#E87AAA',
     prompt: `あなたは「あおい」という20代女性の栄養士AIです。
 友達みたいなフレンドリーな口調で話します。「〜だよね」「わかる〜」「それはしょうがないよ！」などを使います。
 ジャッジしない。共感を最優先にする。絵文字を積極的に使う。150字以内で返答。
 食事内容がわかったら必ず<FOOD_DATA>JSONを出力する。`
   },
   midori: {
-    name: 'みどり先生',
-    emoji: '🌿',
-    bg: 'linear-gradient(135deg, #E8F5EE 0%, #D4EDE0 100%)',
-    avatarBg: '#7BC4A0',
-    color: '#2E7A50',
-    tagBg: '#D4EDE0',
+    name: 'みどり先生', emoji: '🌿', avatarBg: '#7BC4A0', btnColor: '#5BAD7F',
+    bg: 'linear-gradient(135deg, #E8F5EE 0%, #D4EDE0 100%)', color: '#2E7A50', tagBg: '#D4EDE0',
     catch: '「よく気づきましたね」\n穏やかに寄り添い、小さな変化を見逃さない',
     tags: ['承認型', '穏やか', '丁寧語', '継続サポート'],
-    btnColor: '#5BAD7F',
     prompt: `あなたは「みどり先生」という40代の管理栄養士AIです。
 丁寧で穏やかな口調で話します。「〜ですね」「よく気づかれましたね」「一緒に考えましょう」を使います。
 批判せず、小さな変化を承認する。安心感を与える。150字以内で返答。
 食事内容がわかったら必ず<FOOD_DATA>JSONを出力する。`
   },
   kenji: {
-    name: 'けんじ',
-    emoji: '📊',
-    bg: 'linear-gradient(135deg, #EBF0FE 0%, #D8E4FD 100%)',
-    avatarBg: '#7A9FE8',
-    color: '#2E4F9A',
-    tagBg: '#D8E4FD',
+    name: 'けんじ', emoji: '📊', avatarBg: '#7A9FE8', btnColor: '#4A6FD4',
+    bg: 'linear-gradient(135deg, #EBF0FE 0%, #D8E4FD 100%)', color: '#2E4F9A', tagBg: '#D8E4FD',
     catch: '「データ的にはこうだね」\n事実ベースでシンプルに教えてくれる',
     tags: ['分析型', 'さっぱり', '論理的', 'データ重視'],
-    btnColor: '#4A6FD4',
     prompt: `あなたは「けんじ」という30代男性の管理栄養士AIです。
 さっぱりとした論理的な口調で話します。「〜だね」「データ的には」「ポイントは」を使います。
 感情論より事実ベース。シンプルで明快に。余分な励ましは不要。150字以内で返答。
 食事内容がわかったら必ず<FOOD_DATA>JSONを出力する。`
   },
   yuzu: {
-    name: 'ゆず',
-    emoji: '🍋',
-    bg: 'linear-gradient(135deg, #FFFAE8 0%, #FFF3C4 100%)',
-    avatarBg: '#F5D060',
-    color: '#8A6A00',
-    tagBg: '#FFF0B0',
+    name: 'ゆず', emoji: '🍋', avatarBg: '#F5D060', btnColor: '#D4A800',
+    bg: 'linear-gradient(135deg, #FFFAE8 0%, #FFF3C4 100%)', color: '#8A6A00', tagBg: '#FFF0B0',
     catch: '「ま、いっか〜」\nゆるくて癒し系、プレッシャーゼロ',
     tags: ['受容型', 'ゆるい', '癒し系', 'プレッシャーなし'],
-    btnColor: '#D4A800',
     prompt: `あなたは「ゆず」という中性的なキャラクターの栄養士AIです。
 ゆるくて癒し系の口調で話します。「ま、いっかー」「そういう日もあるよ〜」「ゆっくりでいいよ」を使います。
 プレッシャーをかけない。自己批判を和らげる。のんびりした空気感で。150字以内で返答。
@@ -717,10 +639,7 @@ const CHARACTERS = {
   }
 };
 
-const SESSION_ID = 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-const bronzeLog = [];
-
-// 共通JSONプロンプト（全キャラ共通で付与）
+// 共通JSONプロンプト
 const JSON_FORMAT = `
 
 食事内容が把握できたら必ず以下のJSON形式を返答の末尾に追加してください：
@@ -752,220 +671,147 @@ const JSON_FORMAT = `
 
 // ===== 診断データ =====
 const QUESTIONS = [
-  {
-    text: '食事で一番悩むのはどれ？',
-    desc: '正直に選んでね。正解はないよ。',
-    choices: [
-      { icon: '😤', main: 'つい食べすぎてしまう', sub: '気づいたら食べてた、が多い', value: 'over' },
-      { icon: '😶', main: '食欲がわかない・食べるのが面倒', sub: '食事が義務になってる感じ', value: 'less' },
-      { icon: '🤔', main: '何を食べていいかわからない', sub: '食べ方に迷う', value: 'confused' },
-      { icon: '😩', main: 'ストレスで食べてしまう', sub: 'イライラや不安で口が動く', value: 'stress' },
-    ]
-  },
-  {
-    text: '食事記録が続かない理由は？',
-    desc: '今まで続かなかった経験があれば。',
-    choices: [
-      { icon: '😑', main: '面倒くさい', sub: '入力が手間', value: 'lazy' },
-      { icon: '😰', main: 'カロリーを見るのが怖い', sub: '数字にプレッシャーを感じる', value: 'scared' },
-      { icon: '🤷', main: '記録しても何も変わらない気がする', sub: 'やる気が続かない', value: 'meaningless' },
-      { icon: '😊', main: 'わりと続けられる', sub: '記録は苦じゃない', value: 'ok' },
-    ]
-  },
-  {
-    text: 'サポーターに一番求めるのは？',
-    desc: 'どんな関わり方をしてほしい？',
-    choices: [
-      { icon: '🤗', main: '共感してほしい', sub: '気持ちをわかってくれる人', value: 'empathy' },
-      { icon: '📋', main: 'データや事実を教えてほしい', sub: '感情より情報が欲しい', value: 'data' },
-      { icon: '🌿', main: '穏やかに見守ってほしい', sub: 'プレッシャーなく続けたい', value: 'calm' },
-      { icon: '😄', main: '一緒に楽しみたい', sub: 'ゆるく楽しくやりたい', value: 'fun' },
-    ]
-  },
-  {
-    text: '理想の食事の変化は？',
-    desc: '半年後にどうなっていたい？',
-    choices: [
-      { icon: '⚖️', main: '体重や体型を変えたい', sub: '数字で結果を見たい', value: 'weight' },
-      { icon: '😌', main: '食事との付き合い方を楽にしたい', sub: 'ストレスなく食べられるように', value: 'relax' },
-      { icon: '💪', main: '体の調子を整えたい', sub: '疲れにくく元気になりたい', value: 'health' },
-      { icon: '🧠', main: '食行動のくせを知りたい', sub: '自分を理解したい', value: 'insight' },
-    ]
-  },
-  {
-    text: '今の気分に近いのは？',
-    desc: '直感で選んでね。',
-    choices: [
-      { icon: '🌸', main: 'わかってほしい気持ちがある', sub: '誰かに話を聞いてほしい', value: 'want_listen' },
-      { icon: '📊', main: 'さっさと改善したい', sub: 'テキパキ進めたい', value: 'quick' },
-      { icon: '🌿', main: 'ゆっくりでいいから続けたい', sub: '焦りたくない', value: 'slow' },
-      { icon: '🍋', main: 'とにかく気楽にやりたい', sub: 'ゆるくていい', value: 'easy' },
-    ]
-  }
+  { text: '食事で一番悩むのはどれ？', desc: '正直に選んでね。正解はないよ。', choices: [
+    { icon: '😤', main: 'つい食べすぎてしまう', sub: '気づいたら食べてた、が多い', value: 'over' },
+    { icon: '😶', main: '食欲がわからない・食べるのが面倒', sub: '食事が義務になってる感じ', value: 'less' },
+    { icon: '🤔', main: '何を食べていいかわからない', sub: '食べ方に迷う', value: 'confused' },
+    { icon: '😩', main: 'ストレスで食べてしまう', sub: 'イライラや不安で口が動く', value: 'stress' }
+  ]},
+  { text: '食事記録が続かない理由は？', desc: '今まで続かなかった経験があれば。', choices: [
+    { icon: '😑', main: '面倒くさい', sub: '入力が手間', value: 'lazy' },
+    { icon: '😰', main: 'カロリーを見るのが怖い', sub: '数字にプレッシャーを感じる', value: 'scared' },
+    { icon: '🤷', main: '記録しても何も変わらない気がする', sub: 'やる気が続かない', value: 'meaningless' },
+    { icon: '😊', main: 'わりと続けられる', sub: '記録は苦じゃない', value: 'ok' }
+  ]},
+  { text: 'サポーターに一番求めるのは？', desc: 'どんな関わり方をしてほしい？', choices: [
+    { icon: '🤗', main: '共感してほしい', sub: '気持ちをわかってくれる人', value: 'empathy' },
+    { icon: '📋', main: 'データや事実を教えてほしい', sub: '感情より情報が欲しい', value: 'data' },
+    { icon: '🌿', main: '穏やかに見守ってほしい', sub: 'プレッシャーなく続けたい', value: 'calm' },
+    { icon: '😄', main: '一緒に楽しみたい', sub: 'ゆるく楽しくやりたい', value: 'fun' }
+  ]},
+  { text: '理想の食事の変化は？', desc: '半年後にどうなっていたい？', choices: [
+    { icon: '⚖️', main: '体重や体型を変えたい', sub: '数字で結果を見たい', value: 'weight' },
+    { icon: '😌', main: '食事との付き合い方を楽にしたい', sub: 'ストレスなく食べられるように', value: 'relax' },
+    { icon: '💪', main: '体の調子を整えたい', sub: '疲れにくく元気になりたい', value: 'health' },
+    { icon: '🧠', main: '食行動のくせを知りたい', sub: '自分を理解したい', value: 'insight' }
+  ]},
+  { text: '今の気分に近いのは？', desc: '直感で選んでね。', choices: [
+    { icon: '🌸', main: 'わかってほしい気持ちがある', sub: '誰かに話を聞いてほしい', value: 'want_listen' },
+    { icon: '📊', main: 'さっさと改善したい', sub: 'テキパキ進めたい', value: 'quick' },
+    { icon: '🌿', main: 'ゆっくりでいいから続けたい', sub: '焦りたくない', value: 'slow' },
+    { icon: '🍋', main: 'とにかく気軽にやりたい', sub: 'ゆるくていい', value: 'easy' }
+  ]}
 ];
 
-// 診断ロジック（スコア集計）
-function calcCharacter(answers) {
-  const score = { aoi: 0, midori: 0, kenji: 0, yuzu: 0 };
-  const map = {
-    over:0, less:0, confused:0, stress:2,
-    lazy:1, scared:2, meaningless:1, ok:0,
-    empathy:0, data:0, calm:1, fun:3,
-    weight:2, relax:1, health:0, insight:2,
-    want_listen:0, quick:2, slow:1, easy:3
-  };
-  // Q1
-  if (answers[0]==='stress') score.aoi+=2;
-  if (answers[0]==='over') score.yuzu+=1;
-  if (answers[0]==='less') score.midori+=2;
-  if (answers[0]==='confused') score.kenji+=2;
-  // Q2
-  if (answers[1]==='scared') { score.aoi+=2; score.yuzu+=1; }
-  if (answers[1]==='meaningless') score.midori+=2;
-  if (answers[1]==='lazy') score.yuzu+=2;
-  if (answers[1]==='ok') score.kenji+=1;
-  // Q3
-  if (answers[2]==='empathy') score.aoi+=3;
-  if (answers[2]==='data') score.kenji+=3;
-  if (answers[2]==='calm') score.midori+=3;
-  if (answers[2]==='fun') score.yuzu+=3;
-  // Q4
-  if (answers[3]==='weight') score.kenji+=2;
-  if (answers[3]==='relax') { score.aoi+=1; score.yuzu+=2; }
-  if (answers[3]==='health') score.midori+=2;
-  if (answers[3]==='insight') score.kenji+=2;
-  // Q5
-  if (answers[4]==='want_listen') score.aoi+=3;
-  if (answers[4]==='quick') score.kenji+=2;
-  if (answers[4]==='slow') score.midori+=3;
-  if (answers[4]==='easy') score.yuzu+=3;
-
-  return Object.entries(score).sort((a,b)=>b[1]-a[1])[0][0];
+// ===== ユーティリティ =====
+function nowStr() {
+  const d = new Date();
+  return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+}
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function scrollBottom() {
+  const c = document.getElementById('chat-body');
+  setTimeout(() => c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' }), 60);
+}
+function resizeInput(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 90) + 'px';
+}
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+}
+function mealTiming(d) {
+  const h = d.getHours();
+  if (h>=5&&h<10) return '朝食';
+  if (h>=10&&h<14) return '昼食';
+  if (h>=14&&h<17) return '間食';
+  if (h>=17&&h<21) return '夕食';
+  return '夜食';
+}
+function currentChar() {
+  return CHARACTERS[selectedChar] || CHARACTERS.aoi;
 }
 
-// ===== 診断UI =====
-let currentQ = 0;
-let answers = [];
-
-function renderQuestion() {
-  const q = QUESTIONS[currentQ];
-  const pct = (currentQ / QUESTIONS.length) * 100;
-  document.getElementById('progress-fill').style.width = pct + '%';
-  document.getElementById('progress-label').textContent = `${currentQ} / ${QUESTIONS.length}`;
-
-  const choicesHtml = q.choices.map(c => `
-    <button class="choice-btn" onclick="answerQ('${c.value}')">
-      <span class="choice-icon">${c.icon}</span>
-      <div class="choice-text">
-        <div class="choice-main">${c.main}</div>
-        <div class="choice-sub">${c.sub}</div>
-      </div>
-    </button>
-  `).join('');
-
-  document.getElementById('question-wrap').innerHTML = `
-    <div class="question-text">Q${currentQ+1}. ${q.text}</div>
-    <div class="question-desc">${q.desc}</div>
-    <div class="choices">${choicesHtml}</div>
-  `;
-}
-
-function answerQ(value) {
-  answers.push(value);
-  currentQ++;
-  if (currentQ >= QUESTIONS.length) {
-    showResult();
-  } else {
-    renderQuestion();
-  }
-}
-
-function showResult() {
-  document.getElementById('progress-fill').style.width = '100%';
-  document.getElementById('progress-label').textContent = `${QUESTIONS.length} / ${QUESTIONS.length}`;
-
-  const charKey = calcCharacter(answers);
-  const char = CHARACTERS[charKey];
-  selectedChar = charKey;
-
-  document.getElementById('quiz-screen').style.display = 'none';
-  const rs = document.getElementById('result-screen');
-  rs.style.display = 'flex';
-
-  document.getElementById('result-title').textContent = char.name + ' 🎉';
-
-  const card = document.getElementById('char-card');
-  card.style.background = char.bg;
-
-  const av = document.getElementById('char-avatar');
-  av.style.background = char.avatarBg;
-  av.textContent = char.emoji;
-
-  document.getElementById('char-name').textContent = char.name;
-  document.getElementById('char-name').style.color = char.color;
-
-  document.getElementById('char-catch').textContent = char.catch;
-  document.getElementById('char-catch').style.color = char.color;
-
-  const tagsEl = document.getElementById('char-tags');
-  tagsEl.innerHTML = char.tags.map(t =>
-    `<span class="char-tag" style="background:${char.tagBg};color:${char.color};">${t}</span>`
-  ).join('');
-
-  // 結果を保存
-  localStorage.setItem('nani_char', charKey);
-}
-
-function retryQuiz() {
-  currentQ = 0; answers = [];
-  document.getElementById('result-screen').style.display = 'none';
-  document.getElementById('quiz-screen').style.display = 'flex';
-  renderQuestion();
-}
-
-// ===== チャット開始 =====
-function startChat() {
-  const char = CHARACTERS[selectedChar];
-  document.getElementById('result-screen').style.display = 'none';
-  const cs = document.getElementById('chat-screen');
-  cs.style.display = 'flex';
-
-  // ヘッダー設定
+// ===== キャラ適用 =====
+function applySelectedCharacter() {
+  const char = currentChar();
   const av = document.getElementById('chat-avatar');
   av.textContent = char.emoji;
   av.style.background = char.avatarBg;
   document.getElementById('chat-name').textContent = char.name;
-
-  const sendBtn = document.getElementById('send-btn');
-  sendBtn.style.background = char.btnColor;
-
-  // 時刻
-  const now = new Date();
-  const days = ['日','月','火','水','木','金','土'];
-  document.getElementById('hTime').textContent = nowStr();
-  document.getElementById('hDate').textContent = (now.getMonth()+1)+'月'+now.getDate()+'日（'+days[now.getDay()]+'）';
-  document.getElementById('todayLabel').textContent = (now.getMonth()+1)+'月'+now.getDate()+'日（'+days[now.getDay()]+'）';
-  setInterval(()=>{ document.getElementById('hTime').textContent = nowStr(); }, 10000);
-
-  // 最初のメッセージ
-  setTimeout(()=>{
-    addAiBubble(getFirstMsg(selectedChar, char));
-  }, 300);
-
-  setTimeout(initTFEQBanner, 1500);
+  document.getElementById('send-btn').style.background = char.btnColor;
+  document.documentElement.style.setProperty('--char-bg', char.avatarBg);
+  document.documentElement.style.setProperty('--char-btn', char.btnColor);
 }
 
-function getFirstMsg(key, char) {
-  const msgs = {
-    aoi: `はじめまして！あおいだよ😊<br>一緒に食事のこと記録していこうね〜<br>気楽に話しかけてくれていいよ！<br><br>今日は何食べた？`,
-    midori: `はじめまして、みどりと申します🌿<br>食事のことを一緒に振り返っていきましょう。<br>プレッシャーなく、ゆっくりお話しください。<br><br>今日の食事はいかがでしたか？`,
-    kenji: `どうも、けんじです📊<br>食事データを一緒に記録していきましょう。<br>写真かテキストで教えてもらえれば分析します。<br><br>今日何食べた？`,
-    yuzu: `やっほ〜ゆずだよ🍋<br>ゆる〜く食事記録つけていこうね。<br>完璧じゃなくていいからね〜！<br><br>今日なんか食べた？`,
-  };
-  return msgs[key];
+// ===== メッセージ追加 =====
+function addUserMsg(text) {
+  const chat = document.getElementById('chat-body');
+  const timing = mealTiming(new Date());
+  chat.insertAdjacentHTML('beforeend', `
+    <div class="row-user">
+      <div class="user-bubble" style="background:${currentChar().btnColor}">${escHtml(text)}</div>
+    </div>
+    <div class="user-time">${nowStr()} ・ ${timing}</div>
+  `);
+  scrollBottom();
 }
 
-// ===== 食事日時の確認UI =====
+function addAiBubble(html) {
+  const char = currentChar();
+  const chat = document.getElementById('chat-body');
+  chat.insertAdjacentHTML('beforeend', `
+    <div class="row-ai">
+      <div class="ai-av-sm" style="background:${char.avatarBg}">${char.emoji}</div>
+      <div class="ai-bubble">${html}</div>
+    </div>
+    <div class="ai-time">${nowStr()}</div>
+  `);
+  scrollBottom();
+}
+
+function showTyping() {
+  const char = currentChar();
+  const chat = document.getElementById('chat-body');
+  const id = 'ty_' + Date.now();
+  chat.insertAdjacentHTML('beforeend', `
+    <div class="typing row-ai" id="${id}">
+      <div class="ai-av-sm" style="background:${char.avatarBg}">${char.emoji}</div>
+      <div class="typing-dots">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      </div>
+    </div>
+  `);
+  scrollBottom();
+  return id;
+}
+
+function addFoodCard(foods, timing) {
+  if (!foods || foods.length === 0) return;
+  const chat = document.getElementById('chat-body');
+  const rows = foods.map(f => `
+    <div style="display:flex;align-items:center;justify-content:space-between;font-size:12.5px;margin-bottom:5px;">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span>${escHtml(f.name)}</span>
+        <span style="font-size:10px;padding:2px 7px;border-radius:10px;background:var(--orange-light);color:var(--orange-dark);">${escHtml(f.group||'')}</span>
+      </div>
+      <span style="font-size:11px;color:var(--text-sub);">${escHtml(f.amount||'')}</span>
+    </div>
+  `).join('');
+  chat.insertAdjacentHTML('beforeend', `
+    <div class="food-card">
+      <div style="font-size:11px;font-weight:500;color:var(--text-sub);margin-bottom:8px;">🍽️ 読み取り結果</div>
+      ${rows}
+      <div style="height:1px;background:rgba(200,140,80,0.10);margin:7px 0;"></div>
+      <div style="font-size:11px;color:var(--text-sub);">⏰ ${escHtml(timing||'')}（${nowStr()}）</div>
+    </div>
+  `);
+  scrollBottom();
+}
+
+// ===== 食事日時確認UI =====
 function addTimeRow() {
   const chat = document.getElementById('chat-body');
   chat.insertAdjacentHTML('beforeend', `
@@ -980,7 +826,7 @@ function addTimeRow() {
 
 function selectDay(day, btn) {
   btn.closest('.emotion-row').querySelectorAll('.e-btn').forEach(b => b.style.pointerEvents = 'none');
-  const char = CHARACTERS[selectedChar];
+  const char = currentChar();
   const chat = document.getElementById('chat-body');
 
   if (day === 'today') {
@@ -1023,7 +869,7 @@ function confirmDate() {
 }
 
 function showMealTypeRow(date) {
-  const char = CHARACTERS[selectedChar];
+  const char = currentChar();
   const chat = document.getElementById('chat-body');
   chat.insertAdjacentHTML('beforeend', `
     <div class="row-ai">
@@ -1053,7 +899,6 @@ function selectMealType(mealType, btn, dateTs) {
   const label = `${m}月${d}日の${mealType}`;
   addUserMsg(mealType);
 
-  // 最新のbronzeレコードに日時を確定書き込み
   if (bronzeLog.length > 0) {
     const rec = bronzeLog[bronzeLog.length - 1];
     rec.meal_type = mealType;
@@ -1062,10 +907,10 @@ function selectMealType(mealType, btn, dateTs) {
     console.log('[Bronze] 食事日時確定:', rec.meal_datetime_local);
   }
 
-  // 感情確認へ
   callAI(`${label}です`);
 }
 
+// ===== 感情タグUI =====
 function addEmotionRow() {
   const chat = document.getElementById('chat-body');
   chat.insertAdjacentHTML('beforeend', `
@@ -1079,152 +924,103 @@ function addEmotionRow() {
   scrollBottom();
 }
 
-function resetChar() {
-  if (confirm('キャラクターを変更しますか？')) {
-    currentQ = 0; answers = [];
-    conversationHistory = [];
-    document.getElementById('chat-screen').style.display = 'none';
-    document.getElementById('quiz-screen').style.display = 'flex';
-    document.getElementById('chat-body').innerHTML = '<div class="divider"><span id="todayLabel"></span></div>';
-    renderQuestion();
-  }
-}
-
-// ===== チャット共通 =====
-function nowStr() {
-  const d = new Date();
-  return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
-}
-function mealTiming(d) {
-  const h = d.getHours();
-  if (h>=5&&h<10) return '朝食';
-  if (h>=10&&h<14) return '昼食';
-  if (h>=14&&h<17) return '間食';
-  if (h>=17&&h<21) return '夕食';
-  return '夜食';
-}
-function scrollBottom() {
-  const c = document.getElementById('chat-body');
-  setTimeout(()=>c.scrollTo({top:c.scrollHeight,behavior:'smooth'}),60);
-}
-function resizeInput(el) {
-  el.style.height='auto';
-  el.style.height=Math.min(el.scrollHeight,90)+'px';
-}
-function handleKey(e) {
-  if (e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}
-}
-function escHtml(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function addUserMsg(text) {
-  const chat = document.getElementById('chat-body');
-  const timing = mealTiming(new Date());
-  chat.insertAdjacentHTML('beforeend',`
-    <div class="row-user">
-      <div class="user-bubble" style="background:${CHARACTERS[selectedChar].btnColor}">${escHtml(text)}</div>
-    </div>
-    <div class="user-time">${nowStr()} ・ ${timing}</div>
-  `);
-  scrollBottom();
-}
-
-function addAiBubble(html) {
-  const char = CHARACTERS[selectedChar];
-  const chat = document.getElementById('chat-body');
-  chat.insertAdjacentHTML('beforeend',`
-    <div class="row-ai">
-      <div class="ai-av-sm" style="background:${char.avatarBg}">${char.emoji}</div>
-      <div class="ai-bubble">${html}</div>
-    </div>
-    <div class="ai-time">${nowStr()}</div>
-  `);
-  scrollBottom();
-}
-
-function showTyping() {
-  const char = CHARACTERS[selectedChar];
-  const chat = document.getElementById('chat-body');
-  const id = 'ty_'+Date.now();
-  chat.insertAdjacentHTML('beforeend',`
-    <div class="typing row-ai" id="${id}">
-      <div class="ai-av-sm" style="background:${char.avatarBg}">${char.emoji}</div>
-      <div class="typing-dots">
-        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-      </div>
-    </div>
-  `);
-  scrollBottom();
-  return id;
-}
-
-function addFoodCard(foods, timing) {
-  if (!foods||foods.length===0) return;
-  const chat = document.getElementById('chat-body');
-  const rows = foods.map(f=>`
-    <div style="display:flex;align-items:center;justify-content:space-between;font-size:12.5px;margin-bottom:5px;">
-      <div style="display:flex;align-items:center;gap:6px;">
-        <span>${escHtml(f.name)}</span>
-        <span style="font-size:10px;padding:2px 7px;border-radius:10px;background:var(--orange-light);color:var(--orange-dark);">${escHtml(f.group||'')}</span>
-      </div>
-      <span style="font-size:11px;color:var(--text-sub);">${escHtml(f.amount||'')}</span>
-    </div>
-  `).join('');
-  chat.insertAdjacentHTML('beforeend',`
-    <div class="food-card">
-      <div style="font-size:11px;font-weight:500;color:var(--text-sub);margin-bottom:8px;">🍽️ 読み取り結果</div>
-      ${rows}
-      <div style="height:1px;background:rgba(200,140,80,0.10);margin:7px 0;"></div>
-      <div style="font-size:11px;color:var(--text-sub);">⏰ ${escHtml(timing||'')}（${nowStr()}）</div>
-    </div>
-  `);
-  scrollBottom();
-}
-
-function saveBronze(fd) {
-  const now = new Date();
-  const record = {
-    event_id:            'evt_' + Date.now(),
-    session_id:          SESSION_ID,
-    character:           selectedChar,
-    schema_ver:          '1.0',
-    recorded_at_iso:     now.toISOString(),
-    recorded_at_local:   now.toLocaleString('ja-JP'),
-    meal_type:           fd.meal_type         || '不明',
-    meal_date:           null,   // TIME_PROMPTで後から確定
-    meal_datetime_local: null,   // TIME_PROMPTで後から確定
-    foods:               fd.foods             || [],
-    location:            fd.location          || '不明',
-    eating_companions:   fd.eating_companions || '不明',
-    emotion_raw:         fd.emotion_raw       || null,
-    trigger_raw:         fd.trigger_raw       || null,
-    debq_signals:        fd.debq_signals      || {},
-    extraction_confidence: fd.extraction_confidence || null,
-    dietitian_memo:      fd.dietitian_memo    || null,
-  };
-  bronzeLog.push(record);
-  console.log('[Bronze] 保存:', record);
-  console.log('[Bronze] 累計', bronzeLog.length, '件');
-}
-
 function tapEmotion(btn, label) {
   btn.classList.add('sel');
-  btn.closest('.emotion-row').querySelectorAll('.e-btn').forEach(b=>b.style.pointerEvents='none');
+  btn.closest('.emotion-row').querySelectorAll('.e-btn').forEach(b => b.style.pointerEvents = 'none');
   addUserMsg(label);
   callAI(label);
 }
 
+// ===== Bronze保存 =====
+function saveBronze(fd) {
+  const now = new Date();
+  const count = parseInt(localStorage.getItem(BRONZE_COUNT_STORAGE_KEY) || '0');
+  localStorage.setItem(BRONZE_COUNT_STORAGE_KEY, String(count + 1));
+  const record = {
+    event_id:              'evt_' + Date.now(),
+    session_id:            SESSION_ID,
+    character:             selectedChar,
+    schema_ver:            '1.0',
+    recorded_at_iso:       now.toISOString(),
+    recorded_at_local:     now.toLocaleString('ja-JP'),
+    meal_type:             fd.meal_type             || '不明',
+    meal_date:             null,
+    meal_datetime_local:   null,
+    foods:                 fd.foods                 || [],
+    location:              fd.location              || '不明',
+    eating_companions:     fd.eating_companions     || '不明',
+    emotion_raw:           fd.emotion_raw           || null,
+    trigger_raw:           fd.trigger_raw           || null,
+    debq_signals:          fd.debq_signals          || {},
+    extraction_confidence: fd.extraction_confidence || null,
+    dietitian_memo:        fd.dietitian_memo        || null,
+    patient_id:            localStorage.getItem(PATIENT_ID_STORAGE_KEY) || 'unknown',
+  };
+  bronzeLog.push(record);
+  console.log('[Bronze] 保存:', record);
+}
+
+// ===== チャット入力 =====
 async function sendMsg() {
   const input = document.getElementById('msgInput');
   const text = input.value.trim();
   if (!text) return;
-  input.value=''; input.style.height='auto';
+  input.value = ''; input.style.height = 'auto';
   addUserMsg(text);
   await callAI(text);
 }
 
-// ===== Entra patient_id 取得（/.auth/me） =====
+function resizeImage(dataUrl, maxWidth) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxWidth / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width * scale; canvas.height = img.height * scale;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', 0.7));
+    };
+    img.src = dataUrl;
+  });
+}
+
+async function sendPhoto(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const lowerName = file.name.toLowerCase();
+  const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || lowerName.endsWith('.heic') || lowerName.endsWith('.heif');
+  if (isHeic) {
+    const chat = document.getElementById('chat-body');
+    chat.insertAdjacentHTML('beforeend', `<div class="error-bubble">📱 HEICファイルは対応していません。<br>iPhoneの場合：設定 → カメラ → フォーマット → 互換性優先</div>`);
+    scrollBottom();
+    event.target.value = '';
+    return;
+  }
+  const char = currentChar();
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const base64 = await resizeImage(e.target.result, 800);
+    const timing = mealTiming(new Date());
+    const chat = document.getElementById('chat-body');
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="row-user">
+        <div class="photo-bubble">
+          <img src="${base64}" alt="食事写真">
+          <div class="photo-cap" style="background:${char.btnColor}">
+            <span>📷 写真</span><span>${nowStr()}</span>
+          </div>
+        </div>
+      </div>
+      <div class="user-time">${nowStr()} ・ ${timing}</div>
+    `);
+    scrollBottom();
+    event.target.value = '';
+    await callAI('この食事の写真です。食事内容を読み取ってください。', base64);
+  };
+  reader.readAsDataURL(file);
+}
+
+// ===== Entra patient_id取得 =====
 async function getPatientId() {
   if (_patientId) return _patientId;
   try {
@@ -1232,39 +1028,38 @@ async function getPatientId() {
     const data = await res.json();
     _patientId = data?.clientPrincipal?.userId ?? ('anon_' + SESSION_ID);
   } catch(e) {
-    _patientId = 'anon_' + SESSION_ID;
+    _patientId = localStorage.getItem(PATIENT_ID_STORAGE_KEY) || ('anon_' + SESSION_ID);
   }
   return _patientId;
 }
 
 // ===== API呼び出し =====
-async function callAI(userText, imageBase64=null) {
-  const char = CHARACTERS[selectedChar];
+async function callAI(userText, imageBase64 = null) {
+  const char = currentChar();
   const content = imageBase64
-    ? [{type:'text',text:userText||'写真を送ります'},{type:'image_url',image_url:{url:imageBase64,detail:'high'}}]
+    ? [{ type: 'text', text: userText || '写真を送ります' }, { type: 'image_url', image_url: { url: imageBase64, detail: 'high' } }]
     : userText;
-  conversationHistory.push({role:'user',content});
+  conversationHistory.push({ role: 'user', content });
   const tyId = showTyping();
   const patientId = await getPatientId();
   try {
     const res = await fetch(ENDPOINT, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         patient_id: patientId,
         session_id: SESSION_ID,
-        character:  selectedChar,
-        messages:[
-          {role:'system', content: char.prompt + JSON_FORMAT},
+        character: selectedChar,
+        messages: [
+          { role: 'system', content: char.prompt + JSON_FORMAT },
           ...conversationHistory
         ],
-        max_tokens:600, temperature:0.8
       })
     });
-    if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e?.error?.message||`HTTP ${res.status}`); }
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e?.error?.message || `HTTP ${res.status}`); }
     const data = await res.json();
-    const reply = data.choices?.[0]?.message?.content||'';
-    conversationHistory.push({role:'assistant',content:reply});
+    const reply = data.choices?.[0]?.message?.content || '';
+    conversationHistory.push({ role: 'assistant', content: reply });
 
     const el = document.getElementById(tyId);
     if (el) el.remove();
@@ -1275,7 +1070,7 @@ async function callAI(userText, imageBase64=null) {
       .replace(/<EMOTION_PROMPT\/>/g, '')
       .replace(/<TIME_PROMPT\/>/g, '')
       .trim();
-    if (displayText) addAiBubble(displayText.replace(/\n/g,'<br>'));
+    if (displayText) addAiBubble(displayText.replace(/\n/g, '<br>'));
     if (foodMatch) {
       try {
         const fd = JSON.parse(foodMatch[1].trim());
@@ -1292,57 +1087,230 @@ async function callAI(userText, imageBase64=null) {
     const el = document.getElementById(tyId);
     if (el) el.remove();
     const chat = document.getElementById('chat-body');
-    chat.insertAdjacentHTML('beforeend',`
+    chat.insertAdjacentHTML('beforeend', `
       <div class="error-bubble">⚠️ ${escHtml(err.message)}</div>
     `);
     scrollBottom();
   }
 }
 
-function resizeImage(dataUrl, maxWidth) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const scale = Math.min(1, maxWidth / img.width);
-      const canvas = document.createElement('canvas');
-      canvas.width  = img.width  * scale;
-      canvas.height = img.height * scale;
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL('image/jpeg', 0.7));
-    };
-    img.src = dataUrl;
-  });
+// ===== キャラリセット =====
+function resetChar() {
+  if (confirm('キャラクターを変更しますか？')) {
+    currentQ = 0; answers = [];
+    conversationHistory = [];
+    document.getElementById('chat-screen').style.display = 'none';
+    document.getElementById('quiz-screen').style.display = 'flex';
+    document.getElementById('chat-body').innerHTML = '<div class="divider"><span id="todayLabel"></span></div>';
+    renderQuestion();
+  }
 }
 
-// 写真送信
-function sendPhoto(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  const char = CHARACTERS[selectedChar];
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    const base64 = await resizeImage(e.target.result, 800);
-    const timing = mealTiming(new Date());
-    const chat = document.getElementById('chat-body');
-    chat.insertAdjacentHTML('beforeend',`
-      <div class="row-user">
-        <div class="photo-bubble" style="box-shadow:0 2px 10px rgba(0,0,0,0.15)">
-          <img src="${base64}" alt="食事写真">
-          <div class="photo-cap" style="background:${char.btnColor}">
-            <span>📍 ${timing}</span><span>${nowStr()}</span>
-          </div>
-        </div>
+// ===== オンボーディング =====
+function showOnboardingStart() {
+  onboardingInProgress = true;
+  document.getElementById('onboarding-consent-modal').style.display = 'flex';
+  const checkbox = document.getElementById('consent-checkbox');
+  checkbox.checked = false;
+  onConsentChange(checkbox);
+}
+
+function onConsentChange(el) {
+  const btn = document.getElementById('consent-next-btn');
+  btn.classList.toggle('ready', el.checked);
+}
+
+function confirmConsent() {
+  const checkbox = document.getElementById('consent-checkbox');
+  if (!checkbox.checked) return;
+  localStorage.setItem(CONSENT_AGREED_STORAGE_KEY, 'true');
+  document.getElementById('onboarding-consent-modal').style.display = 'none';
+  document.getElementById('onboarding-patient-modal').style.display = 'flex';
+  const input = document.getElementById('onboarding-patient-id-input');
+  input.value = '';
+  onPatientIdInput(input);
+  setTimeout(() => input.focus(), 50);
+}
+
+function onPatientIdInput(el) {
+  const btn = document.getElementById('patient-id-start-btn');
+  btn.classList.toggle('ready', !!el.value.trim());
+}
+
+function confirmPatientId() {
+  const input = document.getElementById('onboarding-patient-id-input');
+  const value = input.value.trim();
+  if (!value) return;
+  localStorage.setItem(PATIENT_ID_STORAGE_KEY, value);
+  localStorage.setItem(REGISTERED_AT_STORAGE_KEY, new Date().toISOString());
+  document.getElementById('onboarding-patient-modal').style.display = 'none';
+  startCharacterQuiz();
+}
+
+// ===== 診断 =====
+function calcCharacter(resultAnswers) {
+  const score = { aoi: 0, midori: 0, kenji: 0, yuzu: 0 };
+  if (resultAnswers[0] === 'stress') score.aoi += 2;
+  if (resultAnswers[0] === 'over') score.yuzu += 1;
+  if (resultAnswers[0] === 'less') score.midori += 2;
+  if (resultAnswers[0] === 'confused') score.kenji += 2;
+  if (resultAnswers[1] === 'scared') { score.aoi += 2; score.yuzu += 1; }
+  if (resultAnswers[1] === 'meaningless') score.midori += 2;
+  if (resultAnswers[1] === 'lazy') score.yuzu += 2;
+  if (resultAnswers[1] === 'ok') score.kenji += 1;
+  if (resultAnswers[2] === 'empathy') score.aoi += 3;
+  if (resultAnswers[2] === 'data') score.kenji += 3;
+  if (resultAnswers[2] === 'calm') score.midori += 3;
+  if (resultAnswers[2] === 'fun') score.yuzu += 3;
+  if (resultAnswers[3] === 'weight') score.kenji += 2;
+  if (resultAnswers[3] === 'relax') { score.aoi += 1; score.yuzu += 2; }
+  if (resultAnswers[3] === 'health') score.midori += 2;
+  if (resultAnswers[3] === 'insight') score.kenji += 2;
+  if (resultAnswers[4] === 'want_listen') score.aoi += 3;
+  if (resultAnswers[4] === 'quick') score.kenji += 2;
+  if (resultAnswers[4] === 'slow') score.midori += 3;
+  if (resultAnswers[4] === 'easy') score.yuzu += 3;
+  return Object.entries(score).sort((a, b) => b[1] - a[1])[0][0];
+}
+
+function renderQuestion() {
+  const q = QUESTIONS[currentQ];
+  const pct = (currentQ / QUESTIONS.length) * 100;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent = `${currentQ} / ${QUESTIONS.length}`;
+  const choicesHtml = q.choices.map(c => `
+    <button class="choice-btn" onclick="answerQ('${c.value}')">
+      <span class="choice-icon">${c.icon}</span>
+      <div class="choice-text">
+        <div class="choice-main">${c.main}</div>
+        <div class="choice-sub">${c.sub}</div>
       </div>
-      <div class="user-time">${nowStr()} ・ ${timing}</div>
-    `);
-    scrollBottom();
-    event.target.value='';
-    await callAI('この食事の写真です。食事内容を読み取ってください。', base64);
-  };
-  reader.readAsDataURL(file);
+    </button>
+  `).join('');
+  document.getElementById('question-wrap').innerHTML = `
+    <div class="question-text">Q${currentQ+1}. ${q.text}</div>
+    <div class="question-desc">${q.desc}</div>
+    <div class="choices">${choicesHtml}</div>
+  `;
 }
 
-// ===== TFEQ-R18 =====
+function answerQ(value) {
+  answers.push(value);
+  currentQ++;
+  if (currentQ >= QUESTIONS.length) {
+    showCharacterResult();
+  } else {
+    renderQuestion();
+  }
+}
+
+function showCharacterResult() {
+  document.getElementById('progress-fill').style.width = '100%';
+  document.getElementById('progress-label').textContent = `${QUESTIONS.length} / ${QUESTIONS.length}`;
+  selectedChar = calcCharacter(answers);
+  localStorage.setItem('nani_char', selectedChar);
+  const char = currentChar();
+  document.getElementById('quiz-screen').style.display = 'none';
+  document.getElementById('result-screen').style.display = 'flex';
+  document.getElementById('result-title').textContent = `${char.name} 🎉`;
+  const card = document.getElementById('char-card');
+  card.style.background = char.bg;
+  const av = document.getElementById('char-avatar-result');
+  av.style.background = char.avatarBg;
+  av.textContent = char.emoji;
+  document.getElementById('char-name-result').textContent = char.name;
+  document.getElementById('char-name-result').style.color = char.color;
+  document.getElementById('char-catch').textContent = char.catch;
+  document.getElementById('char-catch').style.color = char.color;
+  document.getElementById('char-tags').innerHTML = char.tags.map(t =>
+    `<span class="char-tag" style="background:${char.tagBg};color:${char.color};">${t}</span>`
+  ).join('');
+}
+
+function startCharacterQuiz() {
+  currentQ = 0; answers = [];
+  document.getElementById('result-screen').style.display = 'none';
+  document.getElementById('quiz-screen').style.display = 'flex';
+  renderQuestion();
+}
+
+function retryQuiz() {
+  startCharacterQuiz();
+}
+
+function showOnboardingCompleteModal() {
+  document.getElementById('onboarding-complete-emoji').textContent = currentChar().emoji;
+  document.getElementById('onboarding-complete-modal').style.display = 'flex';
+}
+
+function finishOnboardingAndStartChat() {
+  localStorage.setItem(ONBOARDING_DONE_STORAGE_KEY, 'true');
+  document.getElementById('onboarding-complete-modal').style.display = 'none';
+  onboardingInProgress = false;
+  startNormalGreeting();
+}
+
+// ===== チャット開始 =====
+function startChat() {
+  // 結果画面から直接チャット開始（オンボーディング中はTFEQを挟む）
+  document.getElementById('result-screen').style.display = 'none';
+  applySelectedCharacter();
+  initChatScreen();
+  if (onboardingInProgress) {
+    startTFEQ(true);
+  } else {
+    startNormalGreeting();
+  }
+}
+
+function initChatScreen() {
+  const now = new Date();
+  const days = ['日','月','火','水','木','金','土'];
+  document.getElementById('hTime').textContent = nowStr();
+  document.getElementById('hDate').textContent = (now.getMonth()+1)+'月'+now.getDate()+'日（'+days[now.getDay()]+'）';
+  document.getElementById('todayLabel').textContent = (now.getMonth()+1)+'月'+now.getDate()+'日（'+days[now.getDay()]+'）';
+}
+
+function startNormalGreeting() {
+  applySelectedCharacter();
+  setTimeout(() => {
+    addAiBubble(getFirstMsg(selectedChar));
+  }, 300);
+  setTimeout(initTFEQBanner, 1500);
+}
+
+function getFirstMsg(key) {
+  const msgs = {
+    aoi: 'はじめまして！あおいだよ😊<br>一緒に食事のこと記録していこうね〜<br>気楽に話しかけてくれていいよ！<br><br>今日は何食べた？',
+    midori: 'はじめまして、みどりと申します🌿<br>食事のことを一緒に振り返っていきましょう。<br>プレッシャーなく、ゆっくりお話しください。<br><br>今日の食事はいかがでしたか？',
+    kenji: 'どうも、けんじです📊<br>食事データを一緒に記録していきましょう。<br>写真かテキストで教えてもらえれば分析します。<br><br>今日何食べた？',
+    yuzu: 'やっほ〜ゆずだよ🍋<br>ゆる〜く食事記録つけていこうね。<br>完璧じゃなくていいからね〜！<br><br>今日なんか食べた？'
+  };
+  return msgs[key] || msgs.aoi;
+}
+
+// ===== 登録情報モーダル =====
+function formatRegisteredAt(value) {
+  if (!value) return '未登録';
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return value;
+  const days = ['日','月','火','水','木','金','土'];
+  return `${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日（${days[dt.getDay()]}） ${dt.getHours().toString().padStart(2,'0')}:${dt.getMinutes().toString().padStart(2,'0')}`;
+}
+
+function showRegistrationInfoModal() {
+  document.getElementById('reg-patient-id').textContent = localStorage.getItem(PATIENT_ID_STORAGE_KEY) || '未登録';
+  document.getElementById('reg-tfeq-status').textContent = localStorage.getItem('tfeq_done') === 'true' ? '✅ 回答済み' : '未回答';
+  document.getElementById('reg-bronze-count').textContent = `${localStorage.getItem(BRONZE_COUNT_STORAGE_KEY) || '0'}件`;
+  document.getElementById('reg-registered-at').textContent = formatRegisteredAt(localStorage.getItem(REGISTERED_AT_STORAGE_KEY));
+  document.getElementById('registration-info-modal').style.display = 'flex';
+}
+
+function hideRegistrationInfoModal() {
+  document.getElementById('registration-info-modal').style.display = 'none';
+}
+
+// ===== TFEQ =====
 const TFEQ_R18 = [
   { text: '意識的に食べる量を少なくしようとしている', scale: 'CR' },
   { text: '体重が増えないよう、食べる量に気をつけている', scale: 'CR' },
@@ -1363,7 +1331,6 @@ const TFEQ_R18 = [
   { text: '悲しいときや落ち込んでいるとき、食べることで気を紛らわせる', scale: 'EE' },
   { text: '気分が落ち込んでいると、食べすぎてしまう', scale: 'EE' },
 ];
-
 let tfeqAnswers = new Array(18).fill(null);
 
 function initTFEQBanner() {
@@ -1371,7 +1338,7 @@ function initTFEQBanner() {
   const skipCount = parseInt(localStorage.getItem('tfeq_skip_count') || '0');
   const banner = document.getElementById('tfeq-banner');
   const bannerText = document.getElementById('tfeq-banner-text');
-  const charName = CHARACTERS[selectedChar]?.name || '栄養士';
+  const charName = currentChar()?.name || '栄養士';
   banner.style.display = 'flex';
   if (skipCount >= 3) {
     banner.classList.add('urgent');
@@ -1388,9 +1355,11 @@ function skipTFEQ() {
   document.getElementById('tfeq-banner').style.display = 'none';
 }
 
-function startTFEQ() {
+function startTFEQ(fromOnboarding = false) {
+  if (!fromOnboarding) {
+    document.getElementById('chat-screen').style.display = 'none';
+  }
   document.getElementById('tfeq-banner').style.display = 'none';
-  document.getElementById('chat-screen').style.display = 'none';
   tfeqAnswers = new Array(18).fill(null);
   renderTFEQ();
   document.getElementById('tfeq-screen').style.display = 'flex';
@@ -1409,14 +1378,14 @@ function closeTFEQ() {
 
 function renderTFEQ() {
   const body = document.getElementById('tfeq-body');
+  const scaleLabel = { CR: '食事制限', UE: '非制御的摂食', EE: '感情的摂食' };
   body.innerHTML = TFEQ_R18.map((q, i) => `
     <div class="tfeq-q-wrap" id="tfeq-q-${i}">
-      <div class="tfeq-q-num">Q${i+1} — ${q.scale === 'CR' ? '食事制限' : q.scale === 'UE' ? '非制御的摂食' : '感情的摂食'}</div>
+      <div class="tfeq-q-num">Q${i+1} — ${scaleLabel[q.scale]}</div>
       <div class="tfeq-q-text">${q.text}</div>
       <div class="tfeq-opts">
         ${[1,2,3,4].map(v => `
-          <div class="tfeq-opt ${tfeqAnswers[i] === v ? 'sel' : ''}"
-               onclick="tfeqSelect(${i}, ${v})">${v}</div>
+          <div class="tfeq-opt ${tfeqAnswers[i] === v ? 'sel' : ''}" onclick="tfeqSelect(${i}, ${v})">${v}</div>
         `).join('')}
       </div>
     </div>
@@ -1436,56 +1405,57 @@ function updateTFEQProgress() {
   const answered = tfeqAnswers.filter(a => a !== null).length;
   document.getElementById('tfeq-prog-fill').style.width = (answered / 18 * 100) + '%';
   document.getElementById('tfeq-prog-label').textContent = `${answered} / 18`;
-  const btn = document.getElementById('tfeq-submit-btn');
-  const allDone = answered === 18;
-  btn.classList.toggle('ready', allDone);
+  document.getElementById('tfeq-submit-btn').classList.toggle('ready', answered === 18);
 }
 
-function calcTFEQScore() {
+function completeTFEQ() {
+  if (tfeqAnswers.some(a => a === null)) return;
   const cr = tfeqAnswers.slice(0, 6).reduce((a,b) => a+b, 0);
   const ue = tfeqAnswers.slice(6, 15).reduce((a,b) => a+b, 0);
   const ee = tfeqAnswers.slice(15, 18).reduce((a,b) => a+b, 0);
-  return {
+  const score = {
     CR: Math.round((cr - 6) / 18 * 100),
     UE: Math.round((ue - 9) / 27 * 100),
     EE: Math.round((ee - 3) / 9 * 100),
     raw: { CR: cr, UE: ue, EE: ee },
     answers: [...tfeqAnswers],
+    patient_id: localStorage.getItem(PATIENT_ID_STORAGE_KEY) || 'unknown',
     completed_at: new Date().toISOString()
   };
-}
-
-function completeTFEQ() {
-  if (tfeqAnswers.some(a => a === null)) return;
-  const score = calcTFEQScore();
-  localStorage.setItem('tfeq_done', 'true');
+  console.log('[TFEQ] スコア:', score);
   localStorage.setItem('tfeq_score', JSON.stringify(score));
-  console.log('[TFEQ] スコア確定:', score);
-
+  localStorage.setItem('tfeq_done', 'true');
   document.getElementById('tfeq-screen').style.display = 'none';
   document.getElementById('tfeq-banner').style.display = 'none';
-  document.getElementById('chat-screen').style.display = 'flex';
 
-  setTimeout(() => {
-    addAiBubble(`アンケートありがとう！記録したよ🎉<br>これを参考にサポートするね。`);
-  }, 300);
+  if (onboardingInProgress) {
+    showOnboardingCompleteModal();
+  } else {
+    document.getElementById('chat-screen').style.display = 'flex';
+    setTimeout(() => {
+      addAiBubble('アンケートありがとう！記録したよ🎉<br>これを参考にサポートするね。');
+    }, 300);
+  }
 }
-
-// APIキー管理は不要（Logic Apps の Managed Identity + Key Vault で管理）
 
 // ===== 初期化 =====
-// setup-screen 削除済み
+window.addEventListener('load', () => {
+  const now = new Date();
+  const days = ['日','月','火','水','木','金','土'];
+  document.getElementById('hTime').textContent = nowStr();
+  document.getElementById('hDate').textContent = (now.getMonth()+1)+'月'+now.getDate()+'日（'+days[now.getDay()]+'）';
+  document.getElementById('todayLabel').textContent = (now.getMonth()+1)+'月'+now.getDate()+'日（'+days[now.getDay()]+'）';
+  setInterval(() => { document.getElementById('hTime').textContent = nowStr(); }, 10000);
 
-// キャラが保存済みなら診断スキップ
-const savedChar = localStorage.getItem('nani_char');
-if (savedChar && CHARACTERS[savedChar]) {
-  selectedChar = savedChar;
-  document.getElementById('quiz-screen').style.display='none';
-  startChat();
-} else {
-  document.getElementById('quiz-screen').style.display='flex';
-  renderQuestion();
-}
+  applySelectedCharacter();
+
+  const onboardingDone = localStorage.getItem(ONBOARDING_DONE_STORAGE_KEY);
+  if (onboardingDone === 'true') {
+    startNormalGreeting();
+  } else {
+    showOnboardingStart();
+  }
+});
 </script>
 </body>
 </html>
