@@ -1020,18 +1020,14 @@ async function sendPhoto(event) {
   reader.readAsDataURL(file);
 }
 
-// ===== Entra patient_id取得 =====
+// ===== localStrage に変更 03211533 =====
 async function getPatientId() {
   if (_patientId) return _patientId;
-  try {
-    const res = await fetch('/.auth/me');
-    const data = await res.json();
-    _patientId = data?.clientPrincipal?.userId ?? ('anon_' + SESSION_ID);
-  } catch(e) {
-    _patientId = localStorage.getItem(PATIENT_ID_STORAGE_KEY) || ('anon_' + SESSION_ID);
-  }
+  _patientId = localStorage.getItem(PATIENT_ID_STORAGE_KEY) || ('anon_' + SESSION_ID);
   return _patientId;
 }
+
+これでオンボーディングで入力した診察券番号（"12345"）が正しく patient_id として送られるようになります。
 
 // ===== API呼び出し =====
 async function callAI(userText, imageBase64 = null) {
