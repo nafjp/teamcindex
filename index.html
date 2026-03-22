@@ -464,11 +464,12 @@ const CHARACTERS = {
 const JSON_FORMAT = `
 
 食事内容が把握できたら必ず以下のJSON形式を返答の末尾に追加してください。
-また、食事内容を把握した際は「食事した時間はいつでしたか？」と自然な流れで確認してください：
+meal_time はユーザーが「○月○日 HH:MM の食事です」と教えてくれた場合は "yyyy/MM/dd HH:mm" 形式で入力してください。まだ不明な場合は null にしてください：
 <FOOD_DATA>
 {
   "foods": [{"name": "料理名", "group": "主食/肉類/魚介/野菜/乳類/油脂/果物/その他", "amount": "量の目安"}],
   "meal_type": "朝食/昼食/間食/夕食/夜食",
+  "meal_time": "yyyy/MM/dd HH:mm 形式、不明な場合は null",
   "location": "自宅/外食/職場/不明",
   "eating_companions": "一人/家族/同僚/友人/不明",
   "emotion_raw": "患者が言葉にした感情をそのまま転記（解釈しない）",
@@ -698,27 +699,19 @@ function dtConfirm(cardId) {
   const card = document.getElementById(cardId);
   if(card) card.querySelectorAll('button,input').forEach(el=>{ el.disabled=true; });
 
-  const date   = _dtState.date;
-  const type   = _dtState.type;
-  const time   = _dtState.time;   // "HH:MM"
-  const m      = date.getMonth()+1;
-  const d      = date.getDate();
-  const mealDateStr = formatMealDate(date, time);          // yyyy/mm/dd hh:mm
-  const label  = `${m}月${d}日 ${time}の${type}`;
+  const date        = _dtState.date;
+  const type        = _dtState.type;
+  const time        = _dtState.time;   // "HH:MM"
+  const m           = date.getMonth()+1;
+  const d           = date.getDate();
+  const mealDateStr = formatMealDate(date, time);   // "yyyy/mm/dd hh:mm"
+  const label       = `${m}月${d}日 ${time}の${type}`;
 
   addUserMsg(`${m}月${d}日 ${time}・${type}`);
 
-  // pendingRecord に確定値を書き込んでPOST
-  if(pendingRecord) {
-    pendingRecord.meal_type           = type;
-    pendingRecord.meal_date           = mealDateStr;        // ← yyyy/mm/dd hh:mm
-    pendingRecord.meal_datetime_local = label;
-    console.log('[Bronze] 確定 → meal_date:', pendingRecord.meal_date);
-    postBronzeRecord(pendingRecord);
-    pendingRecord = null;
-  }
-
-  callAI(`${label}です`);
+  // AIに「食事日時が確定した」ことを伝える
+  // → AIは次の返答でFOOD_DATAのmeal_timeにこの値を入れて再出力する
+  callAI(`食事日時が確定しました。${mealDateStr}（${type}）です。meal_time を "${mealDateStr}" にしてFOOD_DATAを再出力してください。`);
 }
 
 // ===== 感情UI =====
@@ -874,9 +867,42 @@ async function callAI(userText, imageBase64=null) {
       try {
         const fd = JSON.parse(foodMatch[1].trim());
         if(fd.foods?.length>0) addFoodCard(fd.foods, fd.meal_type);
-        saveBronze(fd);
-        // FOOD_DATA検出 → 必ず日時確認カードを表示
-        setTimeout(()=>addDatetimeCard(), 300);
+
+        if(fd.meal_time) {
+          // meal_time が確定済み → そのまま POST
+          const now = new Date();
+          const count = parseInt(localStorage.getItem(BRONZE_COUNT_STORAGE_KEY)||'0');
+          localStorage.setItem(BRONZE_COUNT_STORAGE_KEY, String(count+1));
+          const record = {
+            event_id:              'evt_'+Date.now(),
+            session_id:            SESSION_ID,
+            character:             selectedChar,
+            schema_ver:            '1.0',
+            recorded_at_iso:       now.toISOString(),
+            recorded_at_local:     now.toLocaleString('ja-JP'),
+            meal_type:             fd.meal_type             || '不明',
+            meal_date:             fd.meal_time,            // "yyyy/mm/dd hh:mm"
+            meal_datetime_local:   fd.meal_time,
+            foods:                 fd.foods                 || [],
+            location:              fd.location              || '不明',
+            eating_companions:     fd.eating_companions     || '不明',
+            emotion_raw:           fd.emotion_raw           || null,
+            trigger_raw:           fd.trigger_raw           || null,
+            debq_signals:          fd.debq_signals          || {},
+            extraction_confidence: fd.extraction_confidence || null,
+            dietitian_memo:        fd.dietitian_memo        || null,
+            patient_id:            localStorage.getItem(PATIENT_ID_STORAGE_KEY) || 'unknown',
+          };
+          console.log('[Bronze] meal_time確定済み → POST:', record.meal_date);
+          postBronzeRecord(record);
+          pendingRecord = null;
+          // 感情UIを表示
+          setTimeout(()=>addEmotionRow(), 300);
+        } else {
+          // meal_time 未確定 → 日時確認カードを表示
+          saveBronze(fd);
+          setTimeout(()=>addDatetimeCard(), 300);
+        }
       } catch(e){ console.warn('[Bronze] JSON parse error:',e); }
     } else if(reply.includes('<EMOTION_PROMPT/>')) {
       setTimeout(()=>addEmotionRow(), 300);
