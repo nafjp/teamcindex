@@ -411,6 +411,7 @@ const SESSION_ID = 'sess_' + Date.now() + '_' + Math.random().toString(36).slice
 
 // FOOD_DATA検出後に日時未確定のまま保持するレコード
 let pendingRecord = null;
+let lastPostedEventId = null;
 
 // 日時カードの選択状態
 let _dtState = { date: null, type: null, time: null };
@@ -729,7 +730,7 @@ function tapEmotion(btn, label) {
   btn.classList.add('sel');
   btn.closest('.emotion-row').querySelectorAll('.e-btn').forEach(b=>b.style.pointerEvents='none');
   addUserMsg(label);
-  callAI(label);
+  callAI(label, null, false);
 }
 
 // ===== Bronze =====
@@ -761,15 +762,22 @@ function saveBronze(fd) {
 }
 
 async function postBronzeRecord(rec) {
+  if (!rec?.event_id) return;
+  if (lastPostedEventId === rec.event_id) {
+    console.log('[Bronze] 重複送信をスキップ:', rec.event_id);
+    return;
+  }
+  lastPostedEventId = rec.event_id;
   try {
     const res = await fetch(ENDPOINT, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({event:'bronze', ...rec})
     });
-    console.log('[Bronze] POST完了 meal_date:', rec.meal_date, '/ status:', res.status);
+    console.log('[Bronze] POST完了 meal_date:', rec.meal_date, '/ status:', res.status, '/ event_id:', rec.event_id);
   } catch(err) {
     console.warn('[Bronze] POST失敗:', err);
+    lastPostedEventId = null;
   }
 }
 
@@ -832,7 +840,7 @@ async function getPatientId() {
   return _patientId;
 }
 
-async function callAI(userText, imageBase64=null) {
+async function callAI(userText, imageBase64=null, allowBronzeSave=true) {
   const c = currentChar();
   const content = imageBase64
     ? [{type:'text',text:userText||'写真を送ります'},{type:'image_url',image_url:{url:imageBase64,detail:'high'}}]
@@ -863,43 +871,54 @@ async function callAI(userText, imageBase64=null) {
 
     if(displayText) addAiBubble(displayText.replace(/\n/g,'<br>'));
 
-    if(foodMatch) {
+    if(foodMatch && allowBronzeSave) {
       try {
         const fd = JSON.parse(foodMatch[1].trim());
         if(fd.foods?.length>0) addFoodCard(fd.foods, fd.meal_type);
 
         if(fd.meal_time) {
-          // meal_time が確定済み → そのまま POST
           const now = new Date();
-          const count = parseInt(localStorage.getItem(BRONZE_COUNT_STORAGE_KEY)||'0');
-          localStorage.setItem(BRONZE_COUNT_STORAGE_KEY, String(count+1));
-          const record = {
-            event_id:              'evt_'+Date.now(),
-            session_id:            SESSION_ID,
-            character:             selectedChar,
-            schema_ver:            '1.0',
-            recorded_at_iso:       now.toISOString(),
-            recorded_at_local:     now.toLocaleString('ja-JP'),
-            meal_type:             fd.meal_type             || '不明',
-            meal_date:             fd.meal_time,            // "yyyy/mm/dd hh:mm"
-            meal_datetime_local:   fd.meal_time,
-            foods:                 fd.foods                 || [],
-            location:              fd.location              || '不明',
-            eating_companions:     fd.eating_companions     || '不明',
-            emotion_raw:           fd.emotion_raw           || null,
-            trigger_raw:           fd.trigger_raw           || null,
-            debq_signals:          fd.debq_signals          || {},
-            extraction_confidence: fd.extraction_confidence || null,
-            dietitian_memo:        fd.dietitian_memo        || null,
-            patient_id:            localStorage.getItem(PATIENT_ID_STORAGE_KEY) || 'unknown',
-          };
-          console.log('[Bronze] meal_time確定済み → POST:', record.meal_date);
-          postBronzeRecord(record);
+          const record = pendingRecord
+            ? {
+                ...pendingRecord,
+                meal_type: fd.meal_type || pendingRecord.meal_type || '不明',
+                meal_date: fd.meal_time,
+                meal_datetime_local: fd.meal_time,
+                foods: fd.foods || pendingRecord.foods || [],
+                location: fd.location || pendingRecord.location || '不明',
+                eating_companions: fd.eating_companions || pendingRecord.eating_companions || '不明',
+                emotion_raw: fd.emotion_raw || pendingRecord.emotion_raw || null,
+                trigger_raw: fd.trigger_raw || pendingRecord.trigger_raw || null,
+                debq_signals: fd.debq_signals || pendingRecord.debq_signals || {},
+                extraction_confidence: fd.extraction_confidence || pendingRecord.extraction_confidence || null,
+                dietitian_memo: fd.dietitian_memo || pendingRecord.dietitian_memo || null,
+                patient_id: pendingRecord.patient_id || localStorage.getItem(PATIENT_ID_STORAGE_KEY) || 'unknown'
+              }
+            : {
+                event_id:              'evt_'+Date.now(),
+                session_id:            SESSION_ID,
+                character:             selectedChar,
+                schema_ver:            '1.0',
+                recorded_at_iso:       now.toISOString(),
+                recorded_at_local:     now.toLocaleString('ja-JP'),
+                meal_type:             fd.meal_type             || '不明',
+                meal_date:             fd.meal_time,
+                meal_datetime_local:   fd.meal_time,
+                foods:                 fd.foods                 || [],
+                location:              fd.location              || '不明',
+                eating_companions:     fd.eating_companions     || '不明',
+                emotion_raw:           fd.emotion_raw           || null,
+                trigger_raw:           fd.trigger_raw           || null,
+                debq_signals:          fd.debq_signals          || {},
+                extraction_confidence: fd.extraction_confidence || null,
+                dietitian_memo:        fd.dietitian_memo        || null,
+                patient_id:            localStorage.getItem(PATIENT_ID_STORAGE_KEY) || 'unknown'
+              };
+          console.log('[Bronze] meal_time確定済み → POST:', record.meal_date, '/ event_id:', record.event_id);
+          await postBronzeRecord(record);
           pendingRecord = null;
-          // 感情UIを表示
           setTimeout(()=>addEmotionRow(), 300);
         } else {
-          // meal_time 未確定 → 日時確認カードを表示
           saveBronze(fd);
           setTimeout(()=>addDatetimeCard(), 300);
         }
@@ -921,6 +940,7 @@ function resetChar() {
   currentQ=0; answers=[];
   conversationHistory=[];
   pendingRecord=null;
+  lastPostedEventId=null;
   document.getElementById('chat-screen').style.display='none';
   document.getElementById('quiz-screen').style.display='flex';
   document.getElementById('chat-body').innerHTML='<div class="divider"><span id="todayLabel"></span></div>';
