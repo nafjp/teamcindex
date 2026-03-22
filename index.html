@@ -570,6 +570,7 @@ body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); display: 
   <div class="tfeq-body" id="tfeq-body"></div>
   <div class="tfeq-footer">
     <button class="tfeq-submit-btn" id="tfeq-submit-btn" onclick="completeTFEQ()">送信する ✓</button>
+    <br><br>
   </div>
 </div>
 
@@ -577,9 +578,7 @@ body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); display: 
 
 <script>
 // ===== 設定 =====
-// Logic Apps の HTTP トリガー URL を設定してください
 const ENDPOINT = "https://prod-22.japanwest.logic.azure.com:443/workflows/143e1fcd09e844908b82ccb7da4e224a/triggers/HTTP_Request/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FHTTP_Request%2Frun&sv=1.0&sig=FF7W9sTKjDxUgcp7EaBLvrdJx8vg3du87W1ZoKOPpOw";
-
 const PATIENT_ID_STORAGE_KEY = 'patient_id';
 const REGISTERED_AT_STORAGE_KEY = 'registered_at';
 const BRONZE_COUNT_STORAGE_KEY = 'bronze_count';
@@ -891,6 +890,9 @@ function showMealTypeRow(date) {
   scrollBottom();
 }
 
+// ===== 修正箇所：selectMealType =====
+// meal_date / meal_datetime_local をレコードに書き込んだ後で
+// postBronzeRecord() を呼び、日時確定済みの状態でLogic Appsへ送信する
 function selectMealType(mealType, btn, dateTs) {
   btn.closest('.emotion-row').querySelectorAll('.e-btn').forEach(b => b.style.pointerEvents = 'none');
   const date = new Date(dateTs);
@@ -905,6 +907,9 @@ function selectMealType(mealType, btn, dateTs) {
     rec.meal_date = date.toLocaleDateString('ja-JP');
     rec.meal_datetime_local = label;
     console.log('[Bronze] 食事日時確定:', rec.meal_datetime_local);
+
+    // 日時が確定したタイミングでLogic Appsへ送信
+    postBronzeRecord(rec);
   }
 
   callAI(`${label}です`);
@@ -931,7 +936,8 @@ function tapEmotion(btn, label) {
   callAI(label);
 }
 
-// ===== Bronze保存 =====
+// ===== 修正箇所：saveBronze =====
+// bronzeLog にレコードを積むだけ。送信は selectMealType → postBronzeRecord で行う。
 function saveBronze(fd) {
   const now = new Date();
   const count = parseInt(localStorage.getItem(BRONZE_COUNT_STORAGE_KEY) || '0');
@@ -944,8 +950,8 @@ function saveBronze(fd) {
     recorded_at_iso:       now.toISOString(),
     recorded_at_local:     now.toLocaleString('ja-JP'),
     meal_type:             fd.meal_type             || '不明',
-    meal_date:             null,
-    meal_datetime_local:   null,
+    meal_date:             null,   // selectMealType で後から埋める
+    meal_datetime_local:   null,   // selectMealType で後から埋める
     foods:                 fd.foods                 || [],
     location:              fd.location              || '不明',
     eating_companions:     fd.eating_companions     || '不明',
@@ -957,7 +963,23 @@ function saveBronze(fd) {
     patient_id:            localStorage.getItem(PATIENT_ID_STORAGE_KEY) || 'unknown',
   };
   bronzeLog.push(record);
-  console.log('[Bronze] 保存:', record);
+  console.log('[Bronze] 一時保存（日時未確定）:', record);
+  // ※ここでは送信しない。selectMealType → postBronzeRecord で送信。
+}
+
+// ===== 追加：postBronzeRecord =====
+// 日時確定後にLogic AppsへPOSTする
+async function postBronzeRecord(record) {
+  try {
+    const res = await fetch(ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'bronze', ...record })
+    });
+    console.log('[Bronze] 送信完了 meal_date:', record.meal_date, '/ status:', res.status);
+  } catch(err) {
+    console.warn('[Bronze] 送信エラー:', err);
+  }
 }
 
 // ===== チャット入力 =====
@@ -1020,7 +1042,6 @@ async function sendPhoto(event) {
   reader.readAsDataURL(file);
 }
 
-// ===== localStrage に変更 03211533 =====
 async function getPatientId() {
   if (_patientId) return _patientId;
   _patientId = localStorage.getItem(PATIENT_ID_STORAGE_KEY) || ('anon_' + SESSION_ID);
@@ -1069,7 +1090,7 @@ async function callAI(userText, imageBase64 = null) {
       try {
         const fd = JSON.parse(foodMatch[1].trim());
         if (fd.foods?.length > 0) addFoodCard(fd.foods, fd.meal_type);
-        saveBronze(fd);
+        saveBronze(fd); // bronzeLogに積むだけ（送信はselectMealTypeで行う）
       } catch(e) { console.warn('[Bronze] JSON解析エラー:', e); }
     }
     if (reply.includes('<TIME_PROMPT/>')) {
@@ -1140,7 +1161,6 @@ async function confirmPatientId() {
   localStorage.setItem(PATIENT_ID_STORAGE_KEY, value);
   localStorage.setItem(REGISTERED_AT_STORAGE_KEY, registeredAt);
 
-  // HTTPリクエストで患者ID登録をサーバーに送信
   try {
     await fetch(ENDPOINT, {
       method: 'POST',
@@ -1265,7 +1285,6 @@ function finishOnboardingAndStartChat() {
 
 // ===== チャット開始 =====
 function startChat() {
-  // 結果画面から直接チャット開始（オンボーディング中はTFEQを挟む）
   document.getElementById('result-screen').style.display = 'none';
   applySelectedCharacter();
   initChatScreen();
