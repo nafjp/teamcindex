@@ -114,6 +114,12 @@ body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); display: 
   border: 1.5px solid rgba(200,140,80,0.3); border-radius: 10px;
   padding: 7px 11px; font-size: 13px; font-family: inherit; color: var(--text); background: var(--bg);
 }
+.dt-time-input {
+  border: 1.5px solid rgba(200,140,80,0.3); border-radius: 10px;
+  padding: 7px 11px; font-size: 14px; font-family: inherit; color: var(--text); background: var(--bg);
+  width: 130px;
+}
+.dt-time-input:focus { outline: none; border-color: var(--orange); }
 .dt-confirm-btn {
   width: 100%; margin-top: 14px; background: var(--orange); color: #fff;
   border: none; border-radius: 12px; padding: 11px;
@@ -388,7 +394,7 @@ body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); display: 
 
 <script>
 // ===== 設定 =====
-const ENDPOINT = "https://prod-22.japanwest.logic.azure.com:443/workflows/143e1fcd09e844908b82ccb7da4e224a/triggers/HTTP_Request/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FHTTP_Request%2Frun&sv=1.0&sig=FF7W9sTKjDxUgcp7EaBLvrdJx8vg3du87W1ZoKOPpOw";
+const ENDPOINT = "https://prod.japanwest.logic.azure.com:443/workflows/YOUR_ENDPOINT_HERE";
 const PATIENT_ID_STORAGE_KEY    = 'patient_id';
 const REGISTERED_AT_STORAGE_KEY = 'registered_at';
 const BRONZE_COUNT_STORAGE_KEY  = 'bronze_count';
@@ -406,8 +412,23 @@ const SESSION_ID = 'sess_' + Date.now() + '_' + Math.random().toString(36).slice
 // FOOD_DATA検出後に日時未確定のまま保持するレコード
 let pendingRecord = null;
 
-// 日時カードの選択状態（カードごとにIDで管理）
-let _dtState = { date: null, type: null };
+// 日時カードの選択状態
+let _dtState = { date: null, type: null, time: null };
+
+// デフォルト時刻（現在時刻を HH:MM で返す）
+function defaultTimeStr() {
+  const now = new Date();
+  return now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+}
+
+// yyyy/mm/dd hh:mm 形式で返す
+function formatMealDate(date, timeStr) {
+  const y  = date.getFullYear();
+  const mo = String(date.getMonth()+1).padStart(2,'0');
+  const d  = String(date.getDate()).padStart(2,'0');
+  const [hh, mm] = (timeStr || '00:00').split(':');
+  return `${y}/${mo}/${d} ${hh.padStart(2,'0')}:${mm.padStart(2,'0')}`;
+}
 
 const CHARACTERS = {
   aoi: {
@@ -442,7 +463,8 @@ const CHARACTERS = {
 
 const JSON_FORMAT = `
 
-食事内容が把握できたら必ず以下のJSON形式を返答の末尾に追加してください：
+食事内容が把握できたら必ず以下のJSON形式を返答の末尾に追加してください。
+また、食事内容を把握した際は「食事した時間はいつでしたか？」と自然な流れで確認してください：
 <FOOD_DATA>
 {
   "foods": [{"name": "料理名", "group": "主食/肉類/魚介/野菜/乳類/油脂/果物/その他", "amount": "量の目安"}],
@@ -580,7 +602,7 @@ function addFoodCard(foods, timing) {
 function addDatetimeCard() {
   const c = currentChar();
   const cardId = 'dtc_' + Date.now();
-  _dtState = { date: null, type: null, cardId };
+  _dtState = { date: null, type: null, time: defaultTimeStr(), cardId };
   const todayStr = new Date().toISOString().split('T')[0];
 
   document.getElementById('chat-body').insertAdjacentHTML('beforeend',`
@@ -596,6 +618,15 @@ function addDatetimeCard() {
         </div>
         <div class="dt-picker-wrap" id="${cardId}-picker-wrap">
           <input type="date" class="dt-date-input" id="${cardId}-picker" max="${todayStr}" onchange="dtPickerChange('${cardId}')">
+        </div>
+      </div>
+
+      <div class="datetime-section">
+        <div class="datetime-section-label">🕐 食事した時刻</div>
+        <div class="dt-btn-row" style="align-items:center;gap:10px;">
+          <input type="time" class="dt-time-input" id="${cardId}-time"
+            value="${defaultTimeStr()}" onchange="dtTimeChange('${cardId}')">
+          <span style="font-size:11px;color:var(--text-light);">※正確でなくてもOK</span>
         </div>
       </div>
 
@@ -620,7 +651,7 @@ function addDatetimeCard() {
 
 function dtCheckReady(cardId) {
   const btn = document.getElementById(cardId+'-confirm');
-  if(btn) btn.classList.toggle('ready', !!_dtState.date && !!_dtState.type);
+  if(btn) btn.classList.toggle('ready', !!_dtState.date && !!_dtState.type && !!_dtState.time);
 }
 
 function dtDay(which, cardId, el) {
@@ -647,6 +678,12 @@ function dtPickerChange(cardId) {
   dtCheckReady(cardId);
 }
 
+function dtTimeChange(cardId) {
+  const val = document.getElementById(cardId+'-time').value;
+  _dtState.time = val || null;
+  dtCheckReady(cardId);
+}
+
 function dtType(type, cardId, el) {
   document.querySelectorAll(`#${cardId}-types .dt-btn`).forEach(b=>b.classList.remove('sel'));
   el.classList.add('sel');
@@ -655,7 +692,7 @@ function dtType(type, cardId, el) {
 }
 
 function dtConfirm(cardId) {
-  if(!_dtState.date || !_dtState.type) return;
+  if(!_dtState.date || !_dtState.type || !_dtState.time) return;
 
   // カードを操作不可に
   const card = document.getElementById(cardId);
@@ -663,18 +700,20 @@ function dtConfirm(cardId) {
 
   const date   = _dtState.date;
   const type   = _dtState.type;
+  const time   = _dtState.time;   // "HH:MM"
   const m      = date.getMonth()+1;
   const d      = date.getDate();
-  const label  = `${m}月${d}日の${type}`;
+  const mealDateStr = formatMealDate(date, time);          // yyyy/mm/dd hh:mm
+  const label  = `${m}月${d}日 ${time}の${type}`;
 
-  addUserMsg(`${m}月${d}日・${type}`);
+  addUserMsg(`${m}月${d}日 ${time}・${type}`);
 
   // pendingRecord に確定値を書き込んでPOST
   if(pendingRecord) {
     pendingRecord.meal_type           = type;
-    pendingRecord.meal_date           = date.toLocaleDateString('ja-JP');
+    pendingRecord.meal_date           = mealDateStr;        // ← yyyy/mm/dd hh:mm
     pendingRecord.meal_datetime_local = label;
-    console.log('[Bronze] 確定 →', pendingRecord.meal_date, pendingRecord.meal_datetime_local);
+    console.log('[Bronze] 確定 → meal_date:', pendingRecord.meal_date);
     postBronzeRecord(pendingRecord);
     pendingRecord = null;
   }
