@@ -411,8 +411,8 @@ const SESSION_ID = 'sess_' + Date.now() + '_' + Math.random().toString(36).slice
 
 // FOOD_DATA検出後に日時未確定のまま保持するレコード
 let pendingRecord = null;
-let lastPostedEventId = null;
 
+let lastPostedEventId = null;
 // 日時カードの選択状態
 let _dtState = { date: null, type: null, time: null };
 
@@ -712,7 +712,7 @@ function dtConfirm(cardId) {
 
   // AIに「食事日時が確定した」ことを伝える
   // → AIは次の返答でFOOD_DATAのmeal_timeにこの値を入れて再出力する
-  callAI(`食事日時が確定しました。${mealDateStr}（${type}）です。meal_time を "${mealDateStr}" にしてFOOD_DATAを再出力してください。`);
+  callAI(`食事日時が確定しました。${mealDateStr}（${type}）です。meal_time を "${mealDateStr}" にしてFOOD_DATAを再出力してください。`, null, true);
 }
 
 // ===== 感情UI =====
@@ -730,6 +730,16 @@ function tapEmotion(btn, label) {
   btn.classList.add('sel');
   btn.closest('.emotion-row').querySelectorAll('.e-btn').forEach(b=>b.style.pointerEvents='none');
   addUserMsg(label);
+
+  if (pendingRecord) {
+    pendingRecord.emotion_raw = label;
+    if (!pendingRecord.meal_date && pendingRecord.meal_datetime_local) {
+      pendingRecord.meal_date = pendingRecord.meal_datetime_local;
+    }
+    postBronzeRecord(pendingRecord);
+    pendingRecord = null;
+  }
+
   callAI(label, null, false);
 }
 
@@ -763,18 +773,21 @@ function saveBronze(fd) {
 
 async function postBronzeRecord(rec) {
   if (!rec?.event_id) return;
+
   if (lastPostedEventId === rec.event_id) {
     console.log('[Bronze] 重複送信をスキップ:', rec.event_id);
     return;
   }
+
   lastPostedEventId = rec.event_id;
+
   try {
     const res = await fetch(ENDPOINT, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({event:'bronze', ...rec})
     });
-    console.log('[Bronze] POST完了 meal_date:', rec.meal_date, '/ status:', res.status, '/ event_id:', rec.event_id);
+    console.log('[Bronze] POST完了 meal_date:', rec.meal_date, '/ status:', res.status);
   } catch(err) {
     console.warn('[Bronze] POST失敗:', err);
     lastPostedEventId = null;
@@ -788,7 +801,7 @@ async function sendMsg() {
   if(!text) return;
   input.value=''; input.style.height='auto';
   addUserMsg(text);
-  await callAI(text);
+  await callAI(text, null, true);
 }
 
 function resizeImage(dataUrl, maxWidth) {
@@ -829,7 +842,7 @@ async function sendPhoto(event) {
     `);
     scrollBottom();
     event.target.value='';
-    await callAI('この食事の写真です。食事内容を読み取ってください。',base64);
+    await callAI('この食事の写真です。食事内容を読み取ってください。',base64,true);
   };
   reader.readAsDataURL(file);
 }
@@ -881,18 +894,18 @@ async function callAI(userText, imageBase64=null, allowBronzeSave=true) {
           const record = pendingRecord
             ? {
                 ...pendingRecord,
-                meal_type: fd.meal_type || pendingRecord.meal_type || '不明',
-                meal_date: fd.meal_time,
-                meal_datetime_local: fd.meal_time,
-                foods: fd.foods || pendingRecord.foods || [],
-                location: fd.location || pendingRecord.location || '不明',
-                eating_companions: fd.eating_companions || pendingRecord.eating_companions || '不明',
-                emotion_raw: fd.emotion_raw || pendingRecord.emotion_raw || null,
-                trigger_raw: fd.trigger_raw || pendingRecord.trigger_raw || null,
-                debq_signals: fd.debq_signals || pendingRecord.debq_signals || {},
+                meal_type:             fd.meal_type             || pendingRecord.meal_type || '不明',
+                meal_date:             fd.meal_time,
+                meal_datetime_local:   fd.meal_time,
+                foods:                 fd.foods                 || pendingRecord.foods || [],
+                location:              fd.location              || pendingRecord.location || '不明',
+                eating_companions:     fd.eating_companions     || pendingRecord.eating_companions || '不明',
+                emotion_raw:           pendingRecord.emotion_raw || fd.emotion_raw || null,
+                trigger_raw:           fd.trigger_raw           || pendingRecord.trigger_raw || null,
+                debq_signals:          fd.debq_signals          || pendingRecord.debq_signals || {},
                 extraction_confidence: fd.extraction_confidence || pendingRecord.extraction_confidence || null,
-                dietitian_memo: fd.dietitian_memo || pendingRecord.dietitian_memo || null,
-                patient_id: pendingRecord.patient_id || localStorage.getItem(PATIENT_ID_STORAGE_KEY) || 'unknown'
+                dietitian_memo:        fd.dietitian_memo        || pendingRecord.dietitian_memo || null,
+                patient_id:            pendingRecord.patient_id || localStorage.getItem(PATIENT_ID_STORAGE_KEY) || 'unknown'
               }
             : {
                 event_id:              'evt_'+Date.now(),
@@ -914,9 +927,9 @@ async function callAI(userText, imageBase64=null, allowBronzeSave=true) {
                 dietitian_memo:        fd.dietitian_memo        || null,
                 patient_id:            localStorage.getItem(PATIENT_ID_STORAGE_KEY) || 'unknown'
               };
-          console.log('[Bronze] meal_time確定済み → POST:', record.meal_date, '/ event_id:', record.event_id);
-          await postBronzeRecord(record);
-          pendingRecord = null;
+
+          pendingRecord = record;
+          console.log('[Bronze] meal_time確定済み、感情入力待ち:', pendingRecord.event_id);
           setTimeout(()=>addEmotionRow(), 300);
         } else {
           saveBronze(fd);
