@@ -710,9 +710,17 @@ function dtConfirm(cardId) {
 
   addUserMsg(`${m}月${d}日 ${time}・${type}`);
 
+  // pendingRecord の日時・種別をここで直接確定させる（AIの返答に依存しない）
+  if(pendingRecord) {
+    pendingRecord.meal_date           = mealDateStr;
+    pendingRecord.meal_datetime_local = mealDateStr;
+    pendingRecord.meal_type           = type;
+    console.log("[Bronze] dtConfirm: pendingRecord 日時確定:", pendingRecord.event_id, mealDateStr);
+  }
+
   // AIに「食事日時が確定した」ことを伝える
-  // → AIは次の返答でFOOD_DATAのmeal_timeにこの値を入れて再出力する
-  callAI(`食事日時が確定しました。${mealDateStr}（${type}）です。meal_time を "${mealDateStr}" にしてFOOD_DATAを再出力してください。`, null, true);
+  // allowBronzeSave=false: この返答でFOOD_DATAが再出力されても2重保存しない
+  callAI(`食事日時が確定しました。${mealDateStr}（${type}）です。meal_time を "${mealDateStr}" にしてFOOD_DATAを再出力してください。`, null, false);
 }
 
 // ===== 感情UI =====
