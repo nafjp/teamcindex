@@ -719,18 +719,15 @@ function dtConfirm(cardId) {
     console.log("[Bronze] dtConfirm: pendingRecord 日時確定:", pendingRecord.event_id, mealDateStr);
   }
 
-  // AIに日時確定を通知（会話文脈を維持）、FOOD_DATA再保存はしない
-  // AI返答後に感情ボタンを表示する（callAI完了後にフォールバック）
+  // AIに日時確定を通知。感情ボタンはcallAI内でAIバブルの後に表示される。
+  // AIがEMOTION_PROMPTを返さない場合のフォールバックとして _addEmotionRowOnce をセット
   let emotionShown = false;
   window._addEmotionRowOnce = function() {
     if(emotionShown) return;
     emotionShown = true;
     addEmotionRow();
   };
-  callAI(`食事日時が確定しました。${mealDateStr}（${type}）です。`, null, false).then(()=>{
-    // AI返答に EMOTION_PROMPT が含まれていなかった場合のフォールバック
-    setTimeout(()=>{ window._addEmotionRowOnce && window._addEmotionRowOnce(); }, 300);
-  });
+  callAI(`食事日時が確定しました。${mealDateStr}（${type}）です。`, null, false);
 }
 
 // ===== 感情UI =====
@@ -751,15 +748,11 @@ function tapEmotion(btn, label) {
 
   if (pendingRecord) {
     pendingRecord.emotion_raw = label;
-    // meal_date が未確定の場合は送信しない（日時カードがまだ未操作）
-    if (!pendingRecord.meal_date) {
-      console.warn('[Bronze] tapEmotion: meal_date未確定のため送信スキップ', pendingRecord.event_id);
-    } else {
-      postBronzeRecord(pendingRecord);
-      pendingRecord = null;
-    }
+    console.log('[Bronze] tapEmotion: 感情記録 →', label, '日時カードを表示');
   }
 
+  // 感情選択後は日時カードを表示（送信は dtConfirm で行う）
+  setTimeout(()=>addDatetimeCard(), 300);
   callAI(label, null, false);
 }
 
@@ -908,68 +901,41 @@ async function callAI(userText, imageBase64=null, allowBronzeSave=true) {
     document.getElementById(tyId)?.remove();
 
     const foodMatch = reply.match(/<FOOD_DATA>([\s\S]*?)<\/FOOD_DATA>/);
+    const hasEmotionPrompt = reply.includes('<EMOTION_PROMPT/>');
     const displayText = reply
       .replace(/<FOOD_DATA>[\s\S]*?<\/FOOD_DATA>/g,'')
       .replace(/<EMOTION_PROMPT\/>/g,'')
       .trim();
 
+    // AIバブルを先に表示
     if(displayText) addAiBubble(displayText.replace(/\n/g,'<br>'));
+
+    // 感情ボタン表示フラグ（AIバブルの後に必ず出す）
+    let shouldShowEmotion = false;
 
     if(foodMatch && allowBronzeSave) {
       try {
         const fd = JSON.parse(foodMatch[1].trim());
         if(fd.foods?.length>0) addFoodCard(fd.foods, fd.meal_type);
 
-        if(fd.meal_time) {
-          const now = new Date();
-          const record = pendingRecord
-            ? {
-                ...pendingRecord,
-                meal_type:             fd.meal_type             || pendingRecord.meal_type || '不明',
-                meal_date:             fd.meal_time,
-                meal_datetime_local:   fd.meal_time,
-                foods:                 fd.foods                 || pendingRecord.foods || [],
-                location:              fd.location              || pendingRecord.location || '不明',
-                eating_companions:     fd.eating_companions     || pendingRecord.eating_companions || '不明',
-                emotion_raw:           pendingRecord.emotion_raw || fd.emotion_raw || null,
-                trigger_raw:           fd.trigger_raw           || pendingRecord.trigger_raw || null,
-                debq_signals:          fd.debq_signals          || pendingRecord.debq_signals || {},
-                extraction_confidence: fd.extraction_confidence || pendingRecord.extraction_confidence || null,
-                dietitian_memo:        fd.dietitian_memo        || pendingRecord.dietitian_memo || null,
-                patient_id:            pendingRecord.patient_id || localStorage.getItem(PATIENT_ID_STORAGE_KEY) || 'unknown'
-              }
-            : {
-                event_id:              'evt_'+Date.now(),
-                session_id:            SESSION_ID,
-                character:             selectedChar,
-                schema_ver:            '1.0',
-                recorded_at_iso:       now.toISOString(),
-                recorded_at_local:     now.toLocaleString('ja-JP'),
-                meal_type:             fd.meal_type             || '不明',
-                meal_date:             fd.meal_time,
-                meal_datetime_local:   fd.meal_time,
-                foods:                 fd.foods                 || [],
-                location:              fd.location              || '不明',
-                eating_companions:     fd.eating_companions     || '不明',
-                emotion_raw:           fd.emotion_raw           || null,
-                trigger_raw:           fd.trigger_raw           || null,
-                debq_signals:          fd.debq_signals          || {},
-                extraction_confidence: fd.extraction_confidence || null,
-                dietitian_memo:        fd.dietitian_memo        || null,
-                patient_id:            localStorage.getItem(PATIENT_ID_STORAGE_KEY) || 'unknown'
-              };
-
-          pendingRecord = record;
-          console.log('[Bronze] meal_time確定済み、感情入力待ち:', pendingRecord.event_id);
-          // _addEmotionRowOnce があれば使う（dtConfirm後の重複防止）、なければ直接表示
-          setTimeout(()=>{ (window._addEmotionRowOnce || addEmotionRow)(); window._addEmotionRowOnce=null; }, 300);
-        } else {
-          saveBronze(fd);
-          setTimeout(()=>addDatetimeCard(), 300);
-        }
+        // 感情 → 日時 の順に統一。meal_time の有無に関わらず同じ流れ。
+        saveBronze(fd);
+        shouldShowEmotion = true;
       } catch(e){ console.warn('[Bronze] JSON parse error:',e); }
-    } else if(reply.includes('<EMOTION_PROMPT/>')) {
-      setTimeout(()=>{ (window._addEmotionRowOnce || addEmotionRow)(); window._addEmotionRowOnce=null; }, 300);
+    } else if(hasEmotionPrompt) {
+      shouldShowEmotion = true;
+    }
+
+    // 感情ボタンは常にAIバブルの後に表示
+    if(shouldShowEmotion) {
+      const show = window._addEmotionRowOnce || addEmotionRow;
+      window._addEmotionRowOnce = null;
+      setTimeout(()=>show(), 150);
+    } else if(window._addEmotionRowOnce) {
+      // dtConfirmからセットされたフォールバック（AIがEMOTION_PROMPTを返さなかった場合）
+      const show = window._addEmotionRowOnce;
+      window._addEmotionRowOnce = null;
+      setTimeout(()=>show(), 150);
     }
   } catch(err) {
     document.getElementById(tyId)?.remove();
