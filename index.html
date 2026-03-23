@@ -697,7 +697,7 @@ const PLACES = ['自宅', '職場', '外食', 'その他'];
 // ===== API設定 =====
 // Vercel環境ではAPIキーはサーバー側（api/chat.js）で管理
 // フロントからは /api/chat を呼ぶだけ
-const API_ENDPOINT = '/api/chat';
+const API_ENDPOINT = 'https://prod-22.japanwest.logic.azure.com:443/workflows/143e1fcd09e844908b82ccb7da4e224a/triggers/HTTP_Request/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FHTTP_Request%2Frun&sv=1.0&sig=FF7W9sTKjDxUgcp7EaBLvrdJx8vg3du87W1ZoKOPpOw';
 const PATIENT_ID_STORAGE_KEY = 'patient_id';
 const REGISTERED_AT_STORAGE_KEY = 'registered_at';
 const BRONZE_COUNT_STORAGE_KEY = 'bronze_count';
