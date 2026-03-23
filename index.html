@@ -719,15 +719,8 @@ function dtConfirm(cardId) {
     console.log("[Bronze] dtConfirm: pendingRecord 日時確定:", pendingRecord.event_id, mealDateStr);
   }
 
-  // AIに日時確定を通知。感情ボタンはcallAI内でAIバブルの後に表示される。
-  // AIがEMOTION_PROMPTを返さない場合のフォールバックとして _addEmotionRowOnce をセット
-  let emotionShown = false;
-  window._addEmotionRowOnce = function() {
-    if(emotionShown) return;
-    emotionShown = true;
-    addEmotionRow();
-  };
-  callAI(`食事日時が確定しました。${mealDateStr}（${type}）です。`, null, false);
+  // AIに日時確定を通知。感情は既に選択済みなので表示しない（allowEmotion=false）
+  callAI(`食事日時が確定しました。${mealDateStr}（${type}）です。`, null, false, false);
 }
 
 // ===== 感情UI =====
@@ -746,14 +739,18 @@ function tapEmotion(btn, label) {
   btn.closest('.emotion-row').querySelectorAll('.e-btn').forEach(b=>b.style.pointerEvents='none');
   addUserMsg(label);
 
+  // フォールバック感情ボタンが残っていれば破棄（重複防止）
+  window._addEmotionRowOnce = null;
+
   if (pendingRecord) {
     pendingRecord.emotion_raw = label;
     console.log('[Bronze] tapEmotion: 感情記録 →', label, '日時カードを表示');
   }
 
   // 感情選択後は日時カードを表示（送信は dtConfirm で行う）
+  // allowEmotion=false で感情ボタンの再表示を防ぐ
   setTimeout(()=>addDatetimeCard(), 300);
-  callAI(label, null, false);
+  callAI(label, null, false, false);
 }
 
 // ===== Bronze =====
@@ -871,7 +868,7 @@ async function getPatientId() {
   return _patientId;
 }
 
-async function callAI(userText, imageBase64=null, allowBronzeSave=true) {
+async function callAI(userText, imageBase64=null, allowBronzeSave=true, allowEmotion=true) {
   // 二重送信防止：AI処理中は新たな呼び出しをスキップ（日時確定の内部呼び出しは除く）
   if(isAiLoading && allowBronzeSave) {
     console.log('[callAI] 処理中のため スキップ');
@@ -920,22 +917,26 @@ async function callAI(userText, imageBase64=null, allowBronzeSave=true) {
 
         // 感情 → 日時 の順に統一。meal_time の有無に関わらず同じ流れ。
         saveBronze(fd);
-        shouldShowEmotion = true;
+        // pendingRecord に感情未入力の場合のみ感情ボタンを表示
+        if(pendingRecord && !pendingRecord.emotion_raw) shouldShowEmotion = true;
       } catch(e){ console.warn('[Bronze] JSON parse error:',e); }
-    } else if(hasEmotionPrompt) {
+    } else if(hasEmotionPrompt && allowBronzeSave) {
       shouldShowEmotion = true;
     }
 
-    // 感情ボタンは常にAIバブルの後に表示
-    if(shouldShowEmotion) {
+    // 感情ボタンは常にAIバブルの後に表示（allowEmotionがfalseなら出さない）
+    if(allowEmotion && shouldShowEmotion) {
       const show = window._addEmotionRowOnce || addEmotionRow;
       window._addEmotionRowOnce = null;
       setTimeout(()=>show(), 150);
-    } else if(window._addEmotionRowOnce) {
+    } else if(allowEmotion && window._addEmotionRowOnce) {
       // dtConfirmからセットされたフォールバック（AIがEMOTION_PROMPTを返さなかった場合）
       const show = window._addEmotionRowOnce;
       window._addEmotionRowOnce = null;
       setTimeout(()=>show(), 150);
+    } else {
+      // 感情不要な呼び出し（tapEmotion後 / dtConfirm後）はフォールバックも破棄
+      window._addEmotionRowOnce = null;
     }
   } catch(err) {
     document.getElementById(tyId)?.remove();
