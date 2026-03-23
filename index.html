@@ -695,9 +695,9 @@ const QUESTIONS = [
 const PLACES = ['自宅', '職場', '外食', 'その他'];
 
 // ===== API設定 =====
-// Vercel環境ではAPIキーはサーバー側（api/chat.js）で管理
-// フロントからは /api/chat を呼ぶだけ
+
 const API_ENDPOINT = 'https://prod-22.japanwest.logic.azure.com:443/workflows/143e1fcd09e844908b82ccb7da4e224a/triggers/HTTP_Request/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FHTTP_Request%2Frun&sv=1.0&sig=FF7W9sTKjDxUgcp7EaBLvrdJx8vg3du87W1ZoKOPpOw';
+const SAVE_ENDPOINT = 'https://prod-61.japaneast.logic.azure.com:443/workflows/4fa5f6f22d374687a3d300b2e7f61bb1/triggers/HTTP_Request/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FHTTP_Request%2Frun&sv=1.0&sig=_y_w_7X22nuwfSZBNJClzJ_ptSKs-FblWIfdj3WAKGk'; // DB保存用 Logic Apps エンドポイント
 const PATIENT_ID_STORAGE_KEY = 'patient_id';
 const REGISTERED_AT_STORAGE_KEY = 'registered_at';
 const BRONZE_COUNT_STORAGE_KEY = 'bronze_count';
@@ -1063,10 +1063,12 @@ async function approveFood(approved, btn) {
 }
 
 function showDatetimePicker() {
+  // ✅ JSTで現在時刻を取得
   const now = new Date();
-  // datetime-local の初期値（現在時刻）
+  const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000); // UTC+9
+
   const pad = n => n.toString().padStart(2,'0');
-  const defaultVal = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const defaultVal = `${jstNow.getUTCFullYear()}-${pad(jstNow.getUTCMonth()+1)}-${pad(jstNow.getUTCDate())}T${pad(jstNow.getUTCHours())}:${pad(jstNow.getUTCMinutes())}`;
   const maxVal = defaultVal;
 
   const chat = document.getElementById('chat-body');
@@ -1164,6 +1166,7 @@ function showEmotionCategoryChips() {
     `<button class="chip" onclick="selectEmotionCategory('😤 気持ちから', '', this)">😤 気持ちから</button>`,
     `<button class="chip" onclick="selectEmotionCategory('👀 目や鼻につられて', '', this)">👀 目や鼻につられて</button>`,
     `<button class="chip" onclick="selectEmotionCategory('🥗 量やカロリーを気にしながら', '', this)">🥗 量やカロリーを気にしながら</button>`,
+    `<button class="chip" onclick="selectEmotionCategory('🎉 楽しく・美味しく', '', this)">🎉 楽しく・美味しく</button>`,
     `<button class="chip" onclick="selectEmotionCategory('🤷 なんとなく', '未分類', this)">🤷 なんとなく</button>`
   ].join('');
   const chat = document.getElementById('chat-body');
@@ -1186,7 +1189,9 @@ async function selectEmotionCategory(label, debq, btn) {
       ? 'どんな気持ちから食べた？😌'
       : label === '👀 目や鼻につられて'
         ? 'どんなきっかけで食べた？👀'
-        : 'どんなふうに量やカロリーを気にしていた？🥗'
+        :label === '🎉 楽しく・美味しく'
+         ? 'どんな良いことがあった？'
+         : 'どんなふうに量やカロリーを気にしていた？🥗'
   );
   await sleep(300);
   showEmotionDetailChips(label);
@@ -1207,6 +1212,12 @@ function showEmotionDetailChips(categoryLabel) {
           { label: '周りが食べてたから', debq: 'External' },
           { label: '時間だったから', debq: 'External' },
           { label: '残したくなかった', debq: 'External' }
+        ]: categoryLabel === '🎉 楽しく・美味しく'
+      ? [
+          { label: '家族・友人と一緒で', debq: 'Positive_social' },
+          { label: '美味しくて満足した', debq: 'Positive_taste' },
+          { label: '気分が良くて', debq: 'Positive_mood' },
+          { label: 'ご褒美として', debq: 'Positive_reward' }
         ]
       : [
           { label: 'ダイエット中だから少なめにした', debq: 'CR' },
@@ -1278,6 +1289,30 @@ function saveBronze(rec) {
   const count = parseInt(localStorage.getItem(BRONZE_COUNT_STORAGE_KEY) || '0');
   localStorage.setItem(BRONZE_COUNT_STORAGE_KEY, String(count + 1));
   console.log('[Bronze] 保存:', full);
+
+  // Logic Apps へ DB保存POST（fire-and-forget）
+  const payload = {
+    patient_id:         rec.patient_id         || 'unknown',
+    meal_time:          rec.meal_time           || null,
+    meal_type:          rec.meal_type           || null,
+    place:              rec.place               || null,
+    emotion_tag:        rec.emotion_tag         || null,
+    debq_type_inferred: rec.debq_type_inferred  || null,
+    food_staple:        rec.food_staple         || null,
+    food_main:          rec.food_main           || null,
+    food_side:          rec.food_side           || null,
+    food_drink:         rec.food_drink          || null,
+    food_dessert:       rec.food_dessert        || null,
+    free_text:          rec.free_text           || null
+  };
+  fetch(SAVE_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).then(r => {
+    if (!r.ok) r.text().then(t => console.warn('[Save] HTTP', r.status, t));
+    else console.log('[Save] DB保存成功');
+  }).catch(e => console.warn('[Save] 通信エラー:', e));
 }
 
 // ===== ヘルパー =====
