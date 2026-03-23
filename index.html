@@ -720,16 +720,17 @@ function dtConfirm(cardId) {
   }
 
   // AIに日時確定を通知（会話文脈を維持）、FOOD_DATA再保存はしない
-  // AI返答でEMOTION_PROMPTが返れば感情ボタンが出る。返らない場合は1.5秒後に強制表示
+  // AI返答後に感情ボタンを表示する（callAI完了後にフォールバック）
   let emotionShown = false;
-  const origAddEmotionRow = window._addEmotionRowOnce || addEmotionRow;
   window._addEmotionRowOnce = function() {
     if(emotionShown) return;
     emotionShown = true;
     addEmotionRow();
   };
-  setTimeout(()=>{ window._addEmotionRowOnce(); }, 1500);
-  callAI(`食事日時が確定しました。${mealDateStr}（${type}）です。`, null, false);
+  callAI(`食事日時が確定しました。${mealDateStr}（${type}）です。`, null, false).then(()=>{
+    // AI返答に EMOTION_PROMPT が含まれていなかった場合のフォールバック
+    setTimeout(()=>{ window._addEmotionRowOnce && window._addEmotionRowOnce(); }, 300);
+  });
 }
 
 // ===== 感情UI =====
